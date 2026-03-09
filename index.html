@@ -2273,7 +2273,7 @@ function exportAllData(){
     weekData,
     stamm,
     cats: safeLoad('nw_cats_v1')||[],
-    mutterliste: safeLoad('nw_ml_v2')||[],
+    mutterliste: safeLoad(MLK)||safeLoad('nw_ml_v2')||safeLoad('nw_ml_v1')||[],
   };
   // Bilder separat einsammeln
   const images={};
@@ -2314,7 +2314,7 @@ function importAllData(e){
           weekData=data.weekData||{};
           if(data.stamm) { Object.assign(stamm,data.stamm); localStorage.setItem('nw_stamm_v1',JSON.stringify(stamm)); }
           if(data.cats)  localStorage.setItem('nw_cats_v1',JSON.stringify(data.cats));
-          if(data.mutterliste) localStorage.setItem('nw_ml_v2',JSON.stringify(data.mutterliste));
+          if(data.mutterliste){localStorage.setItem(MLK,JSON.stringify(data.mutterliste));mutterliste=data.mutterliste;}
           // Bilder einspielen
           if(data.images){
             Object.entries(data.images).forEach(([id,img])=>imgSave(id,img));
