@@ -2543,7 +2543,7 @@ function qKeyNav(e, fieldId){
   }
 }
 
-function quickSaveMl(){
+async function quickSaveMl(){
   const name=(document.getElementById('qName')?.value||'').trim();
   if(!name){
     document.getElementById('qName')?.focus();
