@@ -2294,7 +2294,7 @@ function exportAllData(){
   a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
   const msg=document.getElementById('exportImportMsg');
-  if(msg) msg.innerHTML='<span style="color:var(--accent)">\u2705 Export erfolgreich: '+recipes.length+' Rezepte exportiert. Datei wird heruntergeladen\u2026</span>';
+  if(msg) msg.innerHTML='<span style="color:var(--accent)">\u2705 Export erfolgreich: '+recipes.length+' Rezepte, '+(data.mutterliste?data.mutterliste.length:0)+' Artikel exportiert. Datei wird heruntergeladen\u2026</span>';
 }
 
 function importAllData(e){
