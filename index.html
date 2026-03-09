@@ -1713,7 +1713,7 @@ function delDetailImg(id,e){
 function adjPort(id,d){const r=recipes.find(x=>x.id===id);detailPortions=Math.max(1,detailPortions+d);renderDetail(r,detailPortions);}
 function closeDetail(){document.getElementById('detailOv').classList.remove('open');currentDetailId=null;}
 function editCurrentRecipe(){if(currentDetailId){closeDetail();editRecipe(currentDetailId);}}
-function deleteCurrentRecipe(){
+async function deleteCurrentRecipe(){
   if(!currentDetailId)return;
   if(confirm('Rezept wirklich löschen?')){
     const r=recipes.find(x=>x.id===currentDetailId);
@@ -1801,7 +1801,7 @@ function editRecipe(id){
   document.getElementById('recipeModal').classList.add('open');
 }
 function closeRecipeModal(){document.getElementById('recipeModal').classList.remove('open');_pendingImg=null;_imgCleared=false;}
-function saveRecipe(){
+async function saveRecipe(){
   const name=document.getElementById('fName').value.trim();
   const cat=document.getElementById('fCat').value;
   if(!name||!cat){alert('Bitte Name und Kategorie angeben.');return;}
@@ -2650,7 +2650,7 @@ function mlClearSelection(){
   mlUpdateSelBar();
   renderMutterliste();
 }
-function mlDeleteSelected(){
+async function mlDeleteSelected(){
   if(!mlSelected.size) return;
   const names=mutterliste.filter(a=>mlSelected.has(String(Math.round(a.id)))).map(a=>a.name);
   const inUse=mutterliste.filter(a=>mlSelected.has(String(Math.round(a.id)))&&recipes.some(r=>r.ingredients?.some(i=>i.mlId===a.id))).length;
@@ -2796,7 +2796,7 @@ function openMlModal(id){
   document.getElementById('mlModal').classList.add('open');
 }
 function closeMlModal(){document.getElementById('mlModal').classList.remove('open');mlEditId=null;}
-function saveMlItem(){
+async function saveMlItem(){
   const name=document.getElementById('mlFName').value.trim();
   if(!name){alert('Bitte Artikelname angeben.');return;}
   const data={
