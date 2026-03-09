@@ -771,6 +771,23 @@
 <div class="view" id="view-stamm">
   <div class="stamm-main">
     <h2 class="sec-title" style="margin-bottom:20px">Stammdaten</h2>
+
+    <!-- EXPORT / IMPORT -->
+    <div class="stamm-card" style="margin-bottom:20px">
+      <div class="stamm-title">📦 Daten Export / Import</div>
+      <p style="font-size:.83rem;color:var(--ink2);margin-bottom:14px;line-height:1.6">
+        Exportiere alle Rezepte, Wochenplan, Artikelstamm und Einstellungen als JSON-Datei.<br>
+        Kollegen können diese Datei importieren und starten sofort mit deinen Daten.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-s p" onclick="exportAllData()" style="gap:6px">⬇ Alle Daten exportieren</button>
+        <label class="btn-s" style="cursor:pointer">
+          ⬆ Daten importieren
+          <input type="file" accept=".json" style="display:none" onchange="importAllData(event)"/>
+        </label>
+      </div>
+      <div id="exportImportMsg" style="margin-top:10px;font-size:.8rem;color:var(--ink3)"></div>
+    </div>
     <div class="stamm-card">
       <div class="stamm-title">Parameter</div>
       <div class="stamm-grid">
@@ -2245,6 +2262,81 @@ function saveStamm(){
   // recalc current kalkulation if open
   if(currentKalkId) renderKalk(currentKalkId);
 }
+/* ═══════════════════════════════════════════════════════
+   EXPORT / IMPORT
+═══════════════════════════════════════════════════════ */
+function exportAllData(){
+  const data={
+    version: '1.3',
+    exportDate: new Date().toISOString(),
+    recipes,
+    weekData,
+    stamm,
+    cats: safeLoad('nw_cats_v1')||[],
+    mutterliste: safeLoad('nw_ml_v2')||[],
+  };
+  // Bilder separat einsammeln
+  const images={};
+  recipes.forEach(r=>{
+    const img=imgLoad(r.id);
+    if(img) images[r.id]=img;
+  });
+  data.images=images;
+
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.style.display='none';
+  a.download='neue-weberei-daten-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  const msg=document.getElementById('exportImportMsg');
+  if(msg) msg.innerHTML='<span style="color:var(--accent)">\u2705 Export erfolgreich: '+recipes.length+' Rezepte exportiert. Datei wird heruntergeladen\u2026</span>';
+}
+
+function importAllData(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.recipes) throw new Error('Keine Rezepte gefunden');
+
+      nwConfirm(
+        `Import: ${data.recipes.length} Rezepte vom ${data.exportDate?.slice(0,10)||'?'}\n\nAlle aktuellen Daten werden überschrieben. Fortfahren?`,
+        'Importieren',
+        ()=>{
+          // Daten einspielen
+          recipes=data.recipes;
+          weekData=data.weekData||{};
+          if(data.stamm) { Object.assign(stamm,data.stamm); localStorage.setItem('nw_stamm_v1',JSON.stringify(stamm)); }
+          if(data.cats)  localStorage.setItem('nw_cats_v1',JSON.stringify(data.cats));
+          if(data.mutterliste) localStorage.setItem('nw_ml_v2',JSON.stringify(data.mutterliste));
+          // Bilder einspielen
+          if(data.images){
+            Object.entries(data.images).forEach(([id,img])=>imgSave(id,img));
+          }
+          persist();
+          filteredRecipes=[...recipes];
+          renderCalendar();
+          filterRecipes();
+          loadStammUI();
+          const msg=document.getElementById('exportImportMsg');
+          if(msg) msg.innerHTML=`<span style="color:var(--accent)">✅ Import erfolgreich: ${recipes.length} Rezepte geladen.</span>`;
+        }
+      );
+    } catch(err){
+      const msg=document.getElementById('exportImportMsg');
+      if(msg) msg.innerHTML=`<span style="color:red">❌ Fehler: ${err.message}</span>`;
+    }
+  };
+  reader.readAsText(file);
+  e.target.value=''; // Reset so same file can be imported again
+}
+
 function loadStammUI(){
   document.getElementById('pMwst').value=stamm.mwst;
   renderCatManager();
