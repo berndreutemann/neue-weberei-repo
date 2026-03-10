@@ -393,6 +393,11 @@
     .kalk-weq-badge.amber{background:var(--amber-l);color:var(--amber)}
     .kalk-weq-badge.red{background:#fff5f5;color:#c0392b}
     .kalk-weq-badge.none{background:var(--surface2);color:var(--ink3)}
+    .kalk-chip-actions{display:none;gap:2px;flex-shrink:0}
+    .kalk-recipe-chip:hover .kalk-chip-actions{display:flex}
+    .kalk-recipe-chip.active .kalk-chip-actions{display:flex}
+    .kalk-chip-btn{background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;font-size:.8rem;opacity:.7;transition:opacity .12s,background .12s}
+    .kalk-chip-btn:hover{opacity:1;background:var(--surface2)}
     .kalk-sidebar-foot{padding:10px 10px;border-top:1px solid var(--border);margin-top:auto}
     .kalk-new-btn{width:100%;padding:7px 10px;border-radius:var(--r);font-size:.78rem;cursor:pointer;border:1px dashed var(--border);background:none;color:var(--ink3);transition:all .15s;text-align:center}
     .kalk-new-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -1799,15 +1804,14 @@ function renderRecipeGrid(){
         <div class="rcard-cat">${r.category}</div>
         <div class="rcard-name">${r.name}</div>
         <div class="rcard-tags">${(r.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}${r.season?`<span class="tag">${r.season}</span>`:''}</div>
-        <div class="rcard-meta">${r.time?`<span>${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''} ${r.portions?`<span>👥 ${r.portions} Port.</span>`:''}</div>
+        <div class="rcard-meta">${r.time?`<span>${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''}</div>
 
       </div>
       ${(()=>{
         const k=getKalk(r.id);const c=computeKalk(k);
         const hasVk=c.vkBrutto>0;
-        const wk=r.cost!=null?Number(r.cost):null;
-        const weqVal=hasVk&&wk!=null?(wk/c.vkNetto*100):null;
-        const weqCls=weqVal===null?'':(weqVal>=stamm.weqCrit?'kpi-red':weqVal>=stamm.weqWarn?'kpi-amber':'kpi-green');
+        const hasWk=c.warenkosten>0||c.zutaten.length>0;
+        const weqCls=!hasVk?'':(c.weq>=stamm.weqCrit?'kpi-red':c.weq>=stamm.weqWarn?'kpi-amber':'kpi-green');
         return `<div class="rcard-kpi">
           <div class="rcard-kpi-item kpi-vk">
             <span class="rcard-kpi-lbl">VK Brutto</span>
@@ -1815,11 +1819,11 @@ function renderRecipeGrid(){
           </div>
           <div class="rcard-kpi-item">
             <span class="rcard-kpi-lbl">Wareneinsatz</span>
-            <span class="rcard-kpi-val">${wk!=null?wk.toFixed(2)+' €':'–'}</span>
+            <span class="rcard-kpi-val">${hasWk?c.warenkosten.toFixed(2)+' €':'–'}</span>
           </div>
           <div class="rcard-kpi-item">
             <span class="rcard-kpi-lbl">WEQ</span>
-            <span class="rcard-kpi-val ${weqCls}">${weqVal!=null?weqVal.toFixed(0)+'%':'–'}</span>
+            <span class="rcard-kpi-val ${weqCls}">${hasVk?c.weq.toFixed(0)+'%':'–'}</span>
           </div>
         </div>`;
       })()}
@@ -1866,16 +1870,15 @@ function renderDetail(r,portions){
     <div style="color:var(--accent);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;margin-bottom:18px">${r.category}</div>
     ${(()=>{
       const _k=getKalk(r.id);const _c=computeKalk(_k);
-      const wk=_c.warenkosten>0?_c.warenkosten:(r.cost?Number(r.cost):null);
       const hasVk=_c.vkBrutto>0;
-      const weqVal=hasVk&&wk?(wk/_c.vkNetto*100):null;
-      const weqCls=weqVal===null?'':weqVal>=stamm.weqCrit?'color:#c0392b':weqVal>=stamm.weqWarn?'color:var(--amber)':'color:var(--green)';
+      const hasWk=_c.warenkosten>0||(_c.zutaten&&_c.zutaten.length>0);
+      const weqCls=!hasVk?'':_c.weq>=stamm.weqCrit?'color:#c0392b':_c.weq>=stamm.weqWarn?'color:var(--amber)':'color:var(--green)';
       return `<div class="d-meta-row">
         ${r.time?`<div class="d-meta"><span class="lbl">Aufwand</span><span class="val">${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span></div>`:''}
         ${r.season?`<div class="d-meta"><span class="lbl">Saison</span><span class="val">${r.season}</span></div>`:''}
-        ${wk!=null?`<div class="d-meta"><span class="lbl">Warenkosten/Port.</span><span class="val">💶 ${wk.toFixed(2)} €</span></div>`:''}
+        ${hasWk?`<div class="d-meta"><span class="lbl">Warenkosten/Port.</span><span class="val">💶 ${_c.warenkosten.toFixed(2)} €</span></div>`:''}
         ${hasVk?`<div class="d-meta"><span class="lbl">VK Brutto</span><span class="val">${_c.vkBrutto.toFixed(2)} €</span></div>`:''}
-        ${weqVal!=null?`<div class="d-meta"><span class="lbl">WEQ</span><span class="val" style="${weqCls};font-weight:600">${weqVal.toFixed(1)} %</span></div>`:''}
+        ${hasVk?`<div class="d-meta"><span class="lbl">WEQ</span><span class="val" style="${weqCls};font-weight:600">${_c.weq.toFixed(1)} %</span></div>`:''}
       </div>`;
     })()}
     ${(r.allergens||[]).length?`<div class="d-sec">Allergene</div><div class="allerg-list">${r.allergens.map(a=>`<span class="allerg">${a}</span>`).join('')}</div>`:''}
@@ -2627,7 +2630,12 @@ function renderKalkListBar(){
         }
       }
       html+=`<button class="kalk-recipe-chip ${currentKalkId===r.id?'active':''}" onclick="openKalk(${r.id})">
-        <span class="chip-name">${r.emoji||'🍽'} ${escHtml(r.name)}</span>${badgeHtml}
+        <span class="chip-name">${r.emoji||'🍽'} ${escHtml(r.name)}</span>
+        ${badgeHtml}
+        <span class="kalk-chip-actions">
+          <span class="kalk-chip-btn" onclick="event.stopPropagation();editRecipe(${r.id})" title="Rezept bearbeiten">✏️</span>
+          <span class="kalk-chip-btn" onclick="event.stopPropagation();deleteRecipeCard(${r.id})" title="Rezept löschen" style="color:var(--accent)">🗑</span>
+        </span>
       </button>`;
     });
   });
