@@ -498,7 +498,8 @@
     .eink-empty .ei{font-size:2.4rem;margin-bottom:10px}
 
     /* ═══ LOGIN SCREEN ═══ */
-    #loginScreen{position:fixed;inset:0;background:var(--ink);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+    #loginScreen{display:none!important}
+    #logoutBtn,#userBadge{display:none!important}
     #loginScreen.hidden{display:none}
     .login-box{background:var(--bg);border-radius:8px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
     .login-logo{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--ink);margin-bottom:4px}
@@ -988,7 +989,7 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 /* ═══════ DATA ═══════ */
 let recipes = [];
 let weekData = {};
-let _currentUser = null;
+let _currentUser = {id:'anon', email:'anon'};
 let _currentRole = 'user'; // 'admin' | 'user'
 
 function safeLoad(k){try{return JSON.parse(localStorage.getItem(k));}catch{return null;}}
@@ -1100,14 +1101,13 @@ async function onLogin(user){
   }
   // Update UI
   document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('logoutBtn').style.display='flex';
-  document.getElementById('userBadge').style.display='flex';
+  // logoutBtn hidden (no auth)
+  // userBadge hidden (no auth)
   document.getElementById('userEmail').textContent=user.email;
   const rt=document.getElementById('userRoleTag');
   rt.textContent=_currentRole==='admin'?'Admin':'Mitarbeiter';
   rt.className='role-tag'+(_currentRole==='admin'?' admin':'');
-  // Hide admin-only controls for regular users
-  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=_currentRole==='admin'?'':'none');
+  // admin-only controls all visible (no auth)
   // Load all data
   showLoader(true);
   try{
@@ -3828,18 +3828,25 @@ if ('serviceWorker' in navigator) {
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) document.getElementById(id).classList.remove('open');});
 });
 
-// Check if already logged in (existing session)
+// Start app directly without login
 (async()=>{
+  showLoader(true);
   try{
-    const {data:{session}} = await _sb.auth.getSession();
-    if(session?.user){
-      await onLogin(session.user);
-    }
-    // else: login screen is already visible
+    await Promise.all([
+      loadRecipes().catch(e=>console.error('Rezepte:',e)),
+      loadMutterliste().catch(e=>console.error('Artikel:',e)),
+      loadCats().catch(e=>console.error('Kategorien:',e)),
+      loadStammData().catch(e=>console.error('Stammdaten:',e)),
+      loadWeekData().catch(e=>console.error('Wochenplan:',e))
+    ]);
   }catch(e){
-    console.error('Session-Check fehlgeschlagen:',e);
-    // Show login screen as fallback (already visible by default)
+    console.error('Datenladen fehlgeschlagen:',e);
+  }finally{
+    showLoader(false);
   }
+  try{filterRecipes();}catch(e){console.error(e);}
+  try{renderCalendar();}catch(e){console.error(e);}
+  try{loadStammUI();}catch(e){console.error(e);}
 })();
 </script>
 </body>
