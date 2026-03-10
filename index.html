@@ -1119,7 +1119,9 @@ async function onLogin(user){
       loadMutterliste().catch(e=>console.error('Artikel:',e)),
       loadCats().catch(e=>console.error('Kategorien:',e)),
       loadStammData().catch(e=>console.error('Stammdaten:',e)),
-      loadWeekData().catch(e=>console.error('Wochenplan:',e))
+      loadWeekData().catch(e=>console.error('Wochenplan:',e)),
+      loadKalkulationen().catch(e=>console.error('Kalkulationen:',e)),
+      loadAllImages().catch(e=>console.error('Bilder:',e))
     ]);
   }catch(e){
     console.error('Datenladen fehlgeschlagen:',e);
@@ -1247,10 +1249,22 @@ function imgSave(id,data){_imgCache[id]=data; saveImageToDb(id,data);}
 function imgLoad(id){return _imgCache[id]||null;}
 function imgDelete(id){delete _imgCache[id]; deleteImageFromDb(id);}
 async function preloadImages(ids){
-  for(const id of ids){
-    if(!_imgCache[id]){const d=await loadImageFromDb(id);if(d)_imgCache[id]=d;}
-  }
+  // Load only uncached images, in parallel
+  const missing = ids.filter(id => !_imgCache[id]);
+  if(!missing.length){ filterRecipes(); renderCalendar(); return; }
+  await Promise.all(missing.map(async id => {
+    const d = await loadImageFromDb(id);
+    if(d) _imgCache[id] = d;
+  }));
   filterRecipes(); renderCalendar();
+}
+
+async function loadAllImages(){
+  try{
+    const {data, error} = await _sb.from('recipe_images').select('recipe_id, data');
+    if(error){ console.warn('Bilder laden:', error); return; }
+    (data||[]).forEach(row => { if(row.data) _imgCache[row.recipe_id] = row.data; });
+  }catch(e){ console.warn('loadAllImages error:', e); }
 }
 
 /* Resize + compress to JPEG before storing */
@@ -3878,7 +3892,8 @@ function fmtMenge(amt,unit){
       loadCats().catch(e=>console.error('Kategorien:',e)),
       loadStammData().catch(e=>console.error('Stammdaten:',e)),
       loadWeekData().catch(e=>console.error('Wochenplan:',e)),
-      loadKalkulationen().catch(e=>console.error('Kalkulationen:',e))
+      loadKalkulationen().catch(e=>console.error('Kalkulationen:',e)),
+      loadAllImages().catch(e=>console.error('Bilder:',e))
     ]);
   }catch(e){
     console.error('Datenladen fehlgeschlagen:',e);
