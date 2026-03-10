@@ -2500,6 +2500,31 @@ async function loadKalkulationen(){
     });
   }catch(e){ console.warn('loadKalkulationen error:', e); }
 }
+// Normalize unit names for consistent comparison
+// Normalize unit names for consistent comparison and display
+function normUnit(u){
+  if(!u) return '';
+  const map={'Stk.':'St','Stk':'St','Stück':'St','stk':'St','stk.':'St',
+             'Liter':'l','liter':'l','Gramm':'g','gramm':'g','Kilogramm':'kg',
+             'Milliliter':'ml','EL':'EL','TL':'TL','Bund':'Bund','Portion':'Portion','Schale':'Schale'};
+  return map[u.trim()]||u.trim();
+}
+
+// Convert VPE size from article unit to recipe unit
+// e.g. art.vpe=1, art.einheit='kg', recipe.unit='g' → returns 1000
+function convertVpeToRecipeUnit(vpe, artEinheit, rezEinheit){
+  const ae=normUnit(artEinheit||'');
+  const re=normUnit(rezEinheit||'');
+  if(ae===re) return vpe; // same unit, no conversion needed
+  const toBase={'kg':1000,'g':1,'l':1000,'ml':1}; // base = g or ml
+  // weight conversions
+  if(toBase[ae]!==undefined&&toBase[re]!==undefined){
+    const baseVal=vpe*toBase[ae];
+    return baseVal/toBase[re];
+  }
+  return vpe; // different dimension (e.g. St vs kg) — can't convert
+}
+
 function resolveArticleForIngr(ingr){
   // 1. Try mlId (current Supabase integer)
   let art=ingr.mlId?mlById(ingr.mlId):null;
@@ -2523,8 +2548,8 @@ function getKalk(id){
         return {
           name:i.name, mlId:art?.id||null,
           vpePreis:art?.preis??0,
-          vpeGroesse:art?.vpe??1000,
-          einheit:art?.einheit||i.unit||'g',
+          vpeGroesse:art?convertVpeToRecipeUnit(art.vpe,art.einheit,i.unit||'g'):(1000),
+          einheit:normUnit(i.unit)||normUnit(art?.einheit)||'g',
           rezeptGroesse:parseFloat(i.amount)||0
         };
       })
@@ -2544,15 +2569,15 @@ function getKalk(id){
     if(art){
       if(z.mlId!==art.id){z.mlId=art.id;changed=true;}
       if((!z.vpePreis||z.vpePreis===0)&&art.preis!=null){z.vpePreis=art.preis;changed=true;}
-      if((!z.vpeGroesse||z.vpeGroesse<=1)&&art.vpe){z.vpeGroesse=art.vpe;changed=true;}
-      if(!z.einheit&&art.einheit){z.einheit=art.einheit;changed=true;}
+      if((!z.vpeGroesse||z.vpeGroesse<=1)&&art.vpe){z.vpeGroesse=convertVpeToRecipeUnit(art.vpe,art.einheit,z.einheit);changed=true;}
+      if(!z.einheit&&art.einheit){z.einheit=normUnit(art.einheit);changed=true;}
     }
-    // Menge aus Rezept übernehmen (falls Rezept die Quelle ist)
+    // Menge + Einheit IMMER aus Rezept übernehmen — Rezept ist die Quelle der Wahrheit
     if(recipeIngr){
       const newAmount=parseFloat(recipeIngr.amount)||0;
       if(z.rezeptGroesse!==newAmount){z.rezeptGroesse=newAmount;changed=true;}
-      // Einheit aus Rezept übernehmen wenn noch nicht manuell gesetzt
-      if(!z.mlId&&recipeIngr.unit&&z.einheit!==recipeIngr.unit){z.einheit=recipeIngr.unit;changed=true;}
+      // Einheit immer aus Rezept – auch bei verknüpften Artikeln
+      if(recipeIngr.unit&&z.einheit!==recipeIngr.unit){z.einheit=recipeIngr.unit;changed=true;}
     }
   });
 
@@ -2564,7 +2589,7 @@ function getKalk(id){
       k.zutaten.push({
         name:i.name, mlId:art?.id||null,
         vpePreis:art?.preis??0,
-        vpeGroesse:art?.vpe??1000,
+        vpeGroesse:art?convertVpeToRecipeUnit(art.vpe,art.einheit,i.unit||'g'):(1000),
         einheit:art?.einheit||i.unit||'g',
         rezeptGroesse:parseFloat(i.amount)||0
       });
@@ -2906,8 +2931,8 @@ function kalkRebuildFromRecipe(id){
       mlId:art?.id||null,
       // Keep existing price if set and article matches, otherwise use article price
       vpePreis:existing?.vpePreis>0?existing.vpePreis:(art?.preis??0),
-      vpeGroesse:existing?.vpeGroesse>1?existing.vpeGroesse:(art?.vpe??1000),
-      einheit:art?.einheit||existing?.einheit||i.unit||'g',
+      vpeGroesse:existing?.vpeGroesse>1?existing.vpeGroesse:(art?convertVpeToRecipeUnit(art.vpe,art.einheit,i.unit||'g'):1000),
+      einheit:normUnit(i.unit)||normUnit(art?.einheit)||normUnit(existing?.einheit)||'g',
       rezeptGroesse:parseFloat(i.amount)||existing?.rezeptGroesse||0
     };
   });
@@ -2930,8 +2955,8 @@ function kalkSyncArt(id,idx){
   const z=k.zutaten[idx];if(!z||!z.mlId)return;
   const art=mlById(z.mlId);if(!art)return;
   if(art.preis!=null) z.vpePreis=art.preis;
-  if(art.vpe)  z.vpeGroesse=art.vpe;
-  if(art.einheit) z.einheit=art.einheit;
+  if(art.vpe)  z.vpeGroesse=convertVpeToRecipeUnit(art.vpe,art.einheit,z.einheit);
+  // Einheit NICHT aus Artikel übernehmen — Rezepteinheit bleibt maßgeblich
   kalkSave(id,k);renderKalk(id);
   showToast('✓ Preis aktualisiert: '+art.name);
 }
@@ -2943,8 +2968,8 @@ function kalkSyncAll(id){
     if(!z.mlId)return;
     const art=mlById(z.mlId);if(!art)return;
     if(art.preis!=null){z.vpePreis=art.preis;count++;}
-    if(art.vpe) z.vpeGroesse=art.vpe;
-    if(art.einheit) z.einheit=art.einheit;
+    if(art.vpe) z.vpeGroesse=convertVpeToRecipeUnit(art.vpe,art.einheit,z.einheit);
+    // Einheit NICHT aus Artikel übernehmen — Rezepteinheit bleibt maßgeblich
   });
   kalkSave(id,k);renderKalk(id);
   showToast(count>0?`✓ ${count} Preise aus Artikelstamm aktualisiert`:'Keine verknüpften Zutaten gefunden');
