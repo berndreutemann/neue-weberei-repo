@@ -546,7 +546,7 @@
       </div>
       <div class="login-fg">
         <label for="loginPw">Passwort</label>
-        <input id="loginPw" type="password" placeholder="••••••••" autocomplete="current-password"
+        <input id="loginPw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"
           onkeydown="if(event.key==='Enter')doLogin()"/>
       </div>
       <button class="login-btn" id="loginBtn" onclick="doLogin()">Anmelden</button>
@@ -1031,10 +1031,16 @@ async function doLogin(){
   err.textContent='';
   if(!email||!pw){err.textContent='Bitte E-Mail und Passwort eingeben.';return;}
   btn.disabled=true; btn.textContent='Anmelden …';
-  const {data,error}=await _sb.auth.signInWithPassword({email,password:pw});
-  btn.disabled=false; btn.textContent='Anmelden';
-  if(error){err.textContent='Anmeldung fehlgeschlagen: '+error.message;return;}
-  await onLogin(data.user);
+  try{
+    const {data,error}=await _sb.auth.signInWithPassword({email,password:pw});
+    btn.disabled=false; btn.textContent='Anmelden';
+    if(error){err.textContent='Anmeldung fehlgeschlagen: '+error.message;return;}
+    await onLogin(data.user);
+  }catch(e){
+    btn.disabled=false; btn.textContent='Anmelden';
+    err.textContent='Fehler: '+(e.message||'Unbekannter Fehler');
+    console.error('doLogin error:',e);
+  }
 }
 
 async function doLogout(){
@@ -1084,9 +1090,14 @@ async function doRegister(){
 
 async function onLogin(user){
   _currentUser=user;
-  // Load role from user_roles table
-  const {data:roleData}=await _sb.from('user_roles').select('role').eq('user_id',user.id).single();
-  _currentRole=roleData?.role||'user';
+  try{
+    // Load role from user_roles table
+    const {data:roleData}=await _sb.from('user_roles').select('role').eq('user_id',user.id).single();
+    _currentRole=roleData?.role||'user';
+  }catch(e){
+    _currentRole='user';
+    console.warn('Rolle konnte nicht geladen werden:', e);
+  }
   // Update UI
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('logoutBtn').style.display='flex';
@@ -1099,9 +1110,22 @@ async function onLogin(user){
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=_currentRole==='admin'?'':'none');
   // Load all data
   showLoader(true);
-  await Promise.all([loadRecipes(), loadMutterliste(), loadCats(), loadStammData(), loadWeekData()]);
-  showLoader(false);
-  filterRecipes(); renderCalendar(); loadStammUI();
+  try{
+    await Promise.all([
+      loadRecipes().catch(e=>console.error('Rezepte:',e)),
+      loadMutterliste().catch(e=>console.error('Artikel:',e)),
+      loadCats().catch(e=>console.error('Kategorien:',e)),
+      loadStammData().catch(e=>console.error('Stammdaten:',e)),
+      loadWeekData().catch(e=>console.error('Wochenplan:',e))
+    ]);
+  }catch(e){
+    console.error('Datenladen fehlgeschlagen:',e);
+  }finally{
+    showLoader(false);
+  }
+  try{filterRecipes();}catch(e){console.error('filterRecipes:',e);}
+  try{renderCalendar();}catch(e){console.error('renderCalendar:',e);}
+  try{loadStammUI();}catch(e){console.error('loadStammUI:',e);}
 }
 
 /* ═══════ SUPABASE LOADERS ═══════ */
@@ -3806,11 +3830,16 @@ if ('serviceWorker' in navigator) {
 
 // Check if already logged in (existing session)
 (async()=>{
-  const {data:{session}} = await _sb.auth.getSession();
-  if(session?.user){
-    await onLogin(session.user);
+  try{
+    const {data:{session}} = await _sb.auth.getSession();
+    if(session?.user){
+      await onLogin(session.user);
+    }
+    // else: login screen is already visible
+  }catch(e){
+    console.error('Session-Check fehlgeschlagen:',e);
+    // Show login screen as fallback (already visible by default)
   }
-  // else: login screen is already visible
 })();
 </script>
 </body>
