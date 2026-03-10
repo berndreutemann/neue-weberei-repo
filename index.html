@@ -217,6 +217,18 @@
     /* form section header */
     .form-section-head{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;font-weight:600;color:var(--ink3);padding:10px 0 4px;margin-top:6px;border-top:1px solid var(--border)}
 
+    .rcard-kpi{display:flex;gap:0;border-top:1px solid var(--border)}
+    .rcard-kpi-item{flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:1px;border-right:1px solid var(--border)}
+    .rcard-kpi-item:last-child{border-right:none}
+    .rcard-kpi-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.09em;color:var(--ink3);white-space:nowrap}
+    .rcard-kpi-val{font-size:.95rem;font-weight:600;color:var(--ink)}
+    .rcard-kpi-val.kpi-green{color:var(--green)}
+    .rcard-kpi-val.kpi-amber{color:var(--amber)}
+    .rcard-kpi-val.kpi-red{color:#c0392b}
+    .rcard-kpi-item.kpi-vk{background:var(--ink)}
+    .rcard-kpi-item.kpi-vk .rcard-kpi-lbl{color:rgba(255,255,255,.5)}
+    .rcard-kpi-item.kpi-vk .rcard-kpi-val{color:#fff}
+
     /* MONATSANSICHT */
     .cal-grid.month-view{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:auto}
     .cal-month-head{background:var(--ink);color:#f4f1eb;padding:6px 8px;text-align:center;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em}
@@ -1637,12 +1649,36 @@ function renderRecipeGrid(){
         <div class="rcard-cat">${r.category}</div>
         <div class="rcard-name">${r.name}</div>
         <div class="rcard-tags">${(r.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}${r.season?`<span class="tag">${r.season}</span>`:''}</div>
-        <div class="rcard-meta">${r.time?`<span>${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''} ${r.portions?`<span>👥 ${r.portions} Port.</span>`:''} ${r.cost?`<span>💶 ${Number(r.cost).toFixed(2)} €</span>`:''}</div>
+        <div class="rcard-meta">${r.time?`<span>${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''} ${r.portions?`<span>👥 ${r.portions} Port.</span>`:''}</div>
         ${(r.nw&&r.nw.kcal)?`<div class="nw-mini"><span class="nw-mini-pill">🔥 <strong>${r.nw.kcal}</strong> kcal</span>${r.nw.protein?`<span class="nw-mini-pill">💪 <strong>${r.nw.protein}g</strong> Eiw.</span>`:''}</div>`:''}
       </div>
+      ${(()=>{
+        const k=getKalk(r.id);const c=computeKalk(k);
+        const hasVk=c.vkBrutto>0;
+        const wk=r.cost!=null?Number(r.cost):null;
+        const weqVal=hasVk&&wk!=null?(wk/c.vkNetto*100):null;
+        const weqCls=weqVal===null?'':(weqVal>=stamm.weqCrit?'kpi-red':weqVal>=stamm.weqWarn?'kpi-amber':'kpi-green');
+        return `<div class="rcard-kpi">
+          <div class="rcard-kpi-item kpi-vk">
+            <span class="rcard-kpi-lbl">VK Brutto</span>
+            <span class="rcard-kpi-val">${hasVk?c.vkBrutto.toFixed(2)+' €':'–'}</span>
+          </div>
+          <div class="rcard-kpi-item">
+            <span class="rcard-kpi-lbl">Wareneinsatz</span>
+            <span class="rcard-kpi-val">${wk!=null?wk.toFixed(2)+' €':'–'}</span>
+          </div>
+          <div class="rcard-kpi-item">
+            <span class="rcard-kpi-lbl">WEQ</span>
+            <span class="rcard-kpi-val ${weqCls}">${weqVal!=null?weqVal.toFixed(0)+'%':'–'}</span>
+          </div>
+        </div>`;
+      })()}
       <div class="rcard-foot">
-        <button class="btn-s" onclick="editRecipe(${r.id})">Bearbeiten</button>
-        <button class="btn-s p" onclick="openDetail(${r.id})">Anzeigen</button>
+        <button class="btn-s" onclick="editRecipe(${r.id})" title="Bearbeiten">Bearbeiten</button>
+        <button class="btn-s" onclick="dupRecipe(${r.id})" title="Als Vorlage kopieren" style="padding:4px 9px">⧉</button>
+        <button class="btn-s" onclick="openKalkView(${r.id})" title="Kalkulation" style="padding:4px 9px">📊</button>
+        <button class="btn-s" onclick="deleteRecipeCard(${r.id})" title="Löschen" style="padding:4px 9px;color:var(--accent);border-color:var(--accent)">🗑</button>
+        <button class="btn-s p" onclick="openDetail(${r.id})">Detail</button>
       </div>
     </div>`;
   }).join('');
@@ -1678,11 +1714,20 @@ function renderDetail(r,portions){
     </div>
     <h1 style="font-family:'Playfair Display',serif;font-size:1.8rem;margin-bottom:6px">${r.name}</h1>
     <div style="color:var(--accent);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;margin-bottom:18px">${r.category}</div>
-    <div class="d-meta-row">
-      ${r.time?`<div class="d-meta"><span class="lbl">Aufwand</span><span class="val">${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span></div>`:''}
-      ${r.season?`<div class="d-meta"><span class="lbl">Saison</span><span class="val">${r.season}</span></div>`:''}
-      ${r.cost?`<div class="d-meta"><span class="lbl">Kosten/Port.</span><span class="val">💶 ${Number(r.cost).toFixed(2)} €</span></div>`:''}
-    </div>
+    ${(()=>{
+      const _k=getKalk(r.id);const _c=computeKalk(_k);
+      const wk=_c.warenkosten>0?_c.warenkosten:(r.cost?Number(r.cost):null);
+      const hasVk=_c.vkBrutto>0;
+      const weqVal=hasVk&&wk?(wk/_c.vkNetto*100):null;
+      const weqCls=weqVal===null?'':weqVal>=stamm.weqCrit?'color:#c0392b':weqVal>=stamm.weqWarn?'color:var(--amber)':'color:var(--green)';
+      return `<div class="d-meta-row">
+        ${r.time?`<div class="d-meta"><span class="lbl">Aufwand</span><span class="val">${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span></div>`:''}
+        ${r.season?`<div class="d-meta"><span class="lbl">Saison</span><span class="val">${r.season}</span></div>`:''}
+        ${wk!=null?`<div class="d-meta"><span class="lbl">Warenkosten/Port.</span><span class="val">💶 ${wk.toFixed(2)} €</span></div>`:''}
+        ${hasVk?`<div class="d-meta"><span class="lbl">VK Brutto</span><span class="val">${_c.vkBrutto.toFixed(2)} €</span></div>`:''}
+        ${weqVal!=null?`<div class="d-meta"><span class="lbl">WEQ</span><span class="val" style="${weqCls};font-weight:600">${weqVal.toFixed(1)} %</span></div>`:''}
+      </div>`;
+    })()}
     ${(r.allergens||[]).length?`<div class="d-sec">Allergene</div><div class="allerg-list">${r.allergens.map(a=>`<span class="allerg">${a}</span>`).join('')}</div>`:''}
     <div class="d-sec">Zutaten</div>
     <div class="port-ctrl">
@@ -1713,6 +1758,32 @@ function delDetailImg(id,e){
 function adjPort(id,d){const r=recipes.find(x=>x.id===id);detailPortions=Math.max(1,detailPortions+d);renderDetail(r,detailPortions);}
 function closeDetail(){document.getElementById('detailOv').classList.remove('open');currentDetailId=null;}
 function editCurrentRecipe(){if(currentDetailId){closeDetail();editRecipe(currentDetailId);}}
+async function deleteRecipeCard(id){
+  if(!confirm('Rezept wirklich löschen?'))return;
+  const r=recipes.find(x=>x.id===id);
+  if(!r)return;
+  imgDelete(id);
+  if(r._dbId) await deleteRecipeFromDb(r._dbId);
+  recipes=recipes.filter(x=>x.id!==id);
+  filterRecipes();showToast('✓ Rezept gelöscht');
+}
+
+async function dupRecipe(id){
+  const r=recipes.find(x=>x.id===id);if(!r)return;
+  const newId=Date.now();
+  const copy={...JSON.parse(JSON.stringify(r)),id:newId,name:'Kopie – '+r.name,_dbId:undefined};
+  delete copy._dbId;
+  showLoader(true);
+  const dbId=await saveRecipeToDb(copy,null);
+  if(dbId){copy.id=dbId;copy._dbId=dbId;recipes.unshift(copy);showToast('✓ Kopie erstellt');}
+  showLoader(false);filterRecipes();
+}
+
+function openKalkView(id){
+  showView('kalk',document.querySelectorAll('.nav-tab')[2]);
+  openKalk(id);
+}
+
 async function deleteCurrentRecipe(){
   if(!currentDetailId)return;
   if(confirm('Rezept wirklich löschen?')){
@@ -1820,14 +1891,14 @@ async function saveRecipe(){
     notes:document.getElementById('fNotes').value.trim(),
     emoji:getCatEmoji(cat),
     nw: {
-      kcal:   parseFloat(document.getElementById('nwKcal').value)||null,
-      protein:parseFloat(document.getElementById('nwProtein').value)||null,
-      carbs:  parseFloat(document.getElementById('nwCarbs').value)||null,
-      sugar:  parseFloat(document.getElementById('nwSugar').value)||null,
-      fat:    parseFloat(document.getElementById('nwFat').value)||null,
-      satFat: parseFloat(document.getElementById('nwSatFat').value)||null,
-      fiber:  parseFloat(document.getElementById('nwFiber').value)||null,
-      salt:   parseFloat(document.getElementById('nwSalt').value)||null,
+      kcal:   document.getElementById('nwKcal').value!==''?parseFloat(document.getElementById('nwKcal').value):null,
+      protein:document.getElementById('nwProtein').value!==''?parseFloat(document.getElementById('nwProtein').value):null,
+      carbs:  document.getElementById('nwCarbs').value!==''?parseFloat(document.getElementById('nwCarbs').value):null,
+      sugar:  document.getElementById('nwSugar').value!==''?parseFloat(document.getElementById('nwSugar').value):null,
+      fat:    document.getElementById('nwFat').value!==''?parseFloat(document.getElementById('nwFat').value):null,
+      satFat: document.getElementById('nwSatFat').value!==''?parseFloat(document.getElementById('nwSatFat').value):null,
+      fiber:  document.getElementById('nwFiber').value!==''?parseFloat(document.getElementById('nwFiber').value):null,
+      salt:   document.getElementById('nwSalt').value!==''?parseFloat(document.getElementById('nwSalt').value):null,
     }};
   // handle image
   if(_pendingImg && !_imgCleared){ imgSave(id,_pendingImg); }
@@ -2028,7 +2099,7 @@ function renderNutrition(r){
   }).join('');
 
   return `
-    <div class="d-sec">Nährwerte pro Portion</div>
+    <div class="d-sec" style="display:flex;align-items:center;justify-content:space-between"><span>Nährwerte pro Portion</span><button class="btn-s" onclick="clearNutrition(${r.id})" style="font-size:.72rem;color:var(--accent);border-color:var(--accent)">🗑 Löschen</button></div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
       <div class="nw-bar-grid" style="grid-template-columns:repeat(${Math.min(vals.length,5)},1fr)">${bars}</div>
       <table class="nw-table">
@@ -2044,6 +2115,18 @@ function renderNutrition(r){
     </div>`;
 }
 function nwFmt(v){return (v!=null&&v!=='')?(+v).toFixed(1):'–';}
+
+async function clearNutrition(id){
+  if(!confirm('Nährwertangaben wirklich löschen?'))return;
+  const r=recipes.find(x=>x.id===id);
+  if(!r)return;
+  r.nw={};
+  showLoader(true);
+  await saveRecipeToDb(r, r._dbId);
+  showLoader(false);
+  renderDetail(r,detailPortions);
+  showToast('✓ Nährwerte gelöscht');
+}
 
 /* ═══════ SAMPLE DATA ═══════ */
 function sampleRecipes(){
@@ -2320,10 +2403,6 @@ function renderKalk(id){
       <div class="kc-val">${fmt(c.vkBrutto)} €</div>
     </div>
     <div class="kalk-card">
-      <div class="kc-label">VK Netto (${stamm.mwst}% MwSt.)</div>
-      <div class="kc-val">${fmt(c.vkNetto)} €</div>
-    </div>
-    <div class="kalk-card">
       <div class="kc-label">Warenkosten / Port.</div>
       <div class="kc-val">${fmt(c.warenkosten)} €</div>
     </div>
@@ -2334,10 +2413,6 @@ function renderKalk(id){
     <div class="kalk-card ${dbColor}">
       <div class="kc-label">DB / Portion</div>
       <div class="kc-val">${fmt(c.db)} €</div>
-    </div>
-    <div class="kalk-card ${dbColor}">
-      <div class="kc-label">DB gesamt (${c.portionen} Port.)</div>
-      <div class="kc-val">${fmt(c.dbGesamt)} €</div>
     </div>
   </div>
 
