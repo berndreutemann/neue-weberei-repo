@@ -3549,17 +3549,11 @@ function importAllData(e){
       const data=JSON.parse(ev.target.result);
       if(!data||typeof data!=='object') throw new Error('Ungültiges Format');
 
-      let msg='Folgende Daten werden importiert:
-';
-      if(data.kalks) msg+=`• ${Object.keys(data.kalks).length} Kalkulationen
-`;
-      if(data.cats)  msg+=`• ${data.cats.length} Kategorien
-`;
-      if(data.stamm) msg+='• Stammdaten-Parameter
-';
-      msg+='
-Fortfahren?';
-
+      let msg='Folgende Daten werden importiert:\n';
+      if(data.kalks) msg+='\u2022 '+Object.keys(data.kalks).length+' Kalkulationen\n';
+      if(data.cats)  msg+='\u2022 '+data.cats.length+' Kategorien\n';
+      if(data.stamm) msg+='\u2022 Stammdaten-Parameter\n';
+      msg+='\nFortfahren?';
       if(!confirm(msg)){e.target.value='';return;}
 
       // Import kalks into localStorage
