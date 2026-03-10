@@ -2,6 +2,10 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <!-- version: 202603101421 -->
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="theme-color" content="#1c1c1a"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -3817,12 +3821,18 @@ function fmtMenge(amt,unit){
 }
 
 /* ═══════ INIT ═══════ */
-// Deregister old service workers
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => reg.unregister());
-  });
-}
+// ── AGGRESSIVE CACHE BUST ──────────────────────────────
+// Unregister ALL service workers and clear ALL caches
+(async () => {
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
+  }
+  if ('caches' in window) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+  }
+})();
 
 // Modal close on backdrop click
 ['recipeModal','dayModal','assignModal','mlModal','pdfImportModal'].forEach(id=>{
