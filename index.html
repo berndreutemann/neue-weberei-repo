@@ -385,6 +385,12 @@
     .cat-add-row input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:.83rem;color:var(--ink);background:var(--bg);outline:none}
     .cat-add-row input:focus{border-color:var(--accent)}
     .cat-emoji-pick{width:44px;padding:6px;border:1px solid var(--border);border-radius:var(--r);font-size:1rem;text-align:center;background:var(--bg);cursor:pointer}
+    /* Draft indicator */
+    #draftBadge{display:none;font-size:.72rem;color:var(--amber);background:var(--amber-l);border:1px solid #e8d48a;border-radius:10px;padding:2px 10px;margin-left:8px}
+    #draftRestoreBar{display:none;background:var(--amber-l);border:1px solid #e8d48a;border-radius:var(--r);padding:9px 14px;margin-bottom:12px;font-size:.82rem;color:var(--amber);display:flex;align-items:center;gap:10px}
+    /* Draft indicator */
+    #draftBadge{display:none;font-size:.72rem;color:var(--amber);background:var(--amber-l);border:1px solid #e8d48a;border-radius:10px;padding:2px 10px;margin-left:8px;vertical-align:middle}
+    #draftRestoreBar{background:var(--amber-l);border:1px solid #e8d48a;border-radius:var(--r);padding:9px 14px;margin-bottom:12px;font-size:.82rem;color:var(--amber);display:flex;align-items:center;gap:10px}
     /* fCat new-category input */
     #fCatNew{display:none;margin-top:6px}
 
@@ -745,19 +751,24 @@
 </div>
 
 <!-- REZEPT MODAL -->
-<div class="modal-ov" id="recipeModal">
+<div class="modal-ov" id="recipeModal" onclick="recipeModalOverlayClick(event)">
   <div class="modal">
     <div class="modal-h">
-      <h3 class="modal-title" id="recipeModalTitle">Neues Rezept</h3>
-      <button class="close-x" onclick="closeRecipeModal()">✕</button>
+      <h3 class="modal-title" id="recipeModalTitle">Neues Rezept</h3><span id="draftBadge">Entwurf</span>
+      <button class="close-x" onclick="maybeCloseRecipeModal()">✕</button>
     </div>
     <div class="modal-b">
+      <div id="draftRestoreBar">
+        💾 Ungespeicherter Entwurf gefunden.
+        <button class="btn-s p" onclick="restoreRecipeDraft()" style="font-size:.76rem;padding:3px 10px">Wiederherstellen</button>
+        <button class="btn-s" onclick="discardRecipeDraft()" style="font-size:.76rem;padding:3px 10px">Verwerfen</button>
+      </div>
       <div class="fg">
         <label>Foto</label>
         <div id="imgArea"></div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Name *</label><input id="fName" placeholder="z.B. Tafelspitz"/></div>
+        <div class="fg"><label>Name *</label><input id="fName" placeholder="z.B. Tafelspitz" oninput="scheduleDraft()"/></div>
         <div class="fg"><label>Kategorie *</label>
           <select id="fCat" onchange="onFCatChange(this)"></select>
           <div id="fCatNewWrap" style="display:none;margin-top:6px;display:none"><input id="fCatNew" placeholder="Neue Kategoriename …" style="width:100%"/><div style="display:flex;gap:6px;margin-top:4px"><input id="fCatNewEmoji" style="width:44px;text-align:center" placeholder="🍽" maxlength="2"/><button type="button" class="btn-s p" onclick="confirmNewCat()" style="flex:1">✓ Anlegen &amp; wählen</button><button type="button" class="btn-s" onclick="cancelNewCat()">✕</button></div></div>
@@ -788,7 +799,7 @@
         <input type="hidden" id="fIngrData"/>
       </div>
       <div class="fg"><label>Zubereitungsschritte (ein Schritt pro Zeile)</label>
-        <textarea id="fSteps" rows="5" placeholder="Fleisch waschen …&#10;Zwiebeln dünsten …"></textarea>
+        <textarea id="fSteps" rows="5" placeholder="Fleisch waschen …&#10;Zwiebeln dünsten …" oninput="scheduleDraft()"></textarea>
       </div>
       <div class="fg"><label>Notizen</label><textarea id="fNotes" rows="2" placeholder="Hinweise für die Küche …"></textarea></div>
       <div class="form-section-head">🥦 Nährwerte pro Portion</div>
@@ -810,7 +821,7 @@
       </div>
     </div>
     <div class="modal-f">
-      <button class="btn-s" onclick="closeRecipeModal()">Abbrechen</button>
+      <button class="btn-s" onclick="maybeCloseRecipeModal()">Abbrechen</button>
       <button class="btn-s p" onclick="saveRecipe()">Speichern</button>
     </div>
   </div>
@@ -1990,6 +2001,110 @@ function dzDrop(e){
 
 /* ═══════ ADD/EDIT RECIPE ═══════ */
 function getCatEmoji(cat){return(cats.find(c=>c.name===cat)?.emoji)||'🍽';}
+/* ═══════════════════════════════════════════════════════
+   RECIPE MODAL — DRAFT AUTO-SAVE + CLOSE GUARD
+═══════════════════════════════════════════════════════ */
+const DRAFT_KEY='nw_recipe_draft';
+let _draftTimer=null;
+
+function collectModalData(){
+  return{
+    name:document.getElementById('fName').value,
+    cat:document.getElementById('fCat').value,
+    port:document.getElementById('fPort').value,
+    time:document.getElementById('fTime').value,
+    season:document.getElementById('fSeason').value,
+    tags:document.getElementById('fTags').value,
+    allergens:document.getElementById('fAllergens').value,
+    steps:document.getElementById('fSteps').value,
+    notes:document.getElementById('fNotes').value,
+    ingrs:_ingrRows?JSON.stringify(_ingrRows):'[]',
+    nwKcal:document.getElementById('nwKcal').value,
+    nwProtein:document.getElementById('nwProtein').value,
+    nwCarbs:document.getElementById('nwCarbs').value,
+    nwSugar:document.getElementById('nwSugar').value,
+    nwFat:document.getElementById('nwFat').value,
+    nwSatFat:document.getElementById('nwSatFat').value,
+    nwFiber:document.getElementById('nwFiber').value,
+    nwSalt:document.getElementById('nwSalt').value,
+  };
+}
+
+function isDraftEmpty(d){
+  return !d||(!d.name&&!d.steps&&!(JSON.parse(d.ingrs||'[]').some(r=>r.name)));
+}
+
+function saveDraft(){
+  if(editingId) return; // only draft for new recipes
+  const d=collectModalData();
+  if(isDraftEmpty(d)){sessionStorage.removeItem(DRAFT_KEY);showDraftBadge(false);return;}
+  sessionStorage.setItem(DRAFT_KEY,JSON.stringify(d));
+  showDraftBadge(true);
+}
+
+function scheduleDraft(){
+  clearTimeout(_draftTimer);
+  _draftTimer=setTimeout(saveDraft,600);
+}
+
+function showDraftBadge(on){
+  const b=document.getElementById('draftBadge');
+  if(b) b.style.display=on?'inline':'none';
+}
+
+function restoreRecipeDraft(){
+  const raw=sessionStorage.getItem(DRAFT_KEY);
+  if(!raw) return;
+  const d=JSON.parse(raw);
+  document.getElementById('fName').value=d.name||'';
+  document.getElementById('fPort').value=d.port||4;
+  document.getElementById('fTime').value=d.time||'';
+  document.getElementById('fSeason').value=d.season||'';
+  document.getElementById('fTags').value=d.tags||'';
+  document.getElementById('fAllergens').value=d.allergens||'';
+  document.getElementById('fSteps').value=d.steps||'';
+  document.getElementById('fNotes').value=d.notes||'';
+  document.getElementById('nwKcal').value=d.nwKcal||'';
+  document.getElementById('nwProtein').value=d.nwProtein||'';
+  document.getElementById('nwCarbs').value=d.nwCarbs||'';
+  document.getElementById('nwSugar').value=d.nwSugar||'';
+  document.getElementById('nwFat').value=d.nwFat||'';
+  document.getElementById('nwSatFat').value=d.nwSatFat||'';
+  document.getElementById('nwFiber').value=d.nwFiber||'';
+  document.getElementById('nwSalt').value=d.nwSalt||'';
+  if(d.cat){populateFCat(d.cat);}
+  try{const ingrs=JSON.parse(d.ingrs||'[]');initIngrRows(ingrs);}catch(e){}
+  document.getElementById('draftRestoreBar').style.display='none';
+  showDraftBadge(true);
+  showToast('✓ Entwurf wiederhergestellt');
+}
+
+function discardRecipeDraft(){
+  sessionStorage.removeItem(DRAFT_KEY);
+  document.getElementById('draftRestoreBar').style.display='none';
+  showDraftBadge(false);
+  showToast('Entwurf verworfen');
+}
+
+function recipeModalOverlayClick(e){
+  // Only close if click is directly on the overlay (not on modal content)
+  if(e.target!==e.currentTarget) return;
+  maybeCloseRecipeModal();
+}
+
+function maybeCloseRecipeModal(){
+  if(!editingId){
+    const d=collectModalData();
+    if(!isDraftEmpty(d)){
+      if(!confirm('Entwurf verwerfen und schließen?')) return;
+      sessionStorage.removeItem(DRAFT_KEY);
+      showDraftBadge(false);
+    }
+  }
+  closeRecipeModal();
+}
+
+
 function openAddRecipe(){
   editingId=null;_pendingImg=null;_imgCleared=false;
   document.getElementById('recipeModalTitle').textContent='Neues Rezept';
@@ -2000,6 +2115,10 @@ function openAddRecipe(){
   populateFCat();document.getElementById('fCat').value='';document.getElementById('fCatNewWrap').style.display='none';document.getElementById('fSeason').value='';
   document.getElementById('fPort').value=4;document.getElementById('fTime').value='';document.getElementById('fCost').value='';
   renderImgArea();
+  showDraftBadge(false);
+  // Check for saved draft
+  const hasDraft=!isDraftEmpty(JSON.parse(sessionStorage.getItem(DRAFT_KEY)||'null'));
+  document.getElementById('draftRestoreBar').style.display=hasDraft?'flex':'none';
   document.getElementById('recipeModal').classList.add('open');
 }
 function editRecipe(id){
@@ -2031,6 +2150,8 @@ function editRecipe(id){
   document.getElementById('nwFiber').value=nw.fiber||'';
   document.getElementById('nwSalt').value=nw.salt||'';
   renderImgArea();
+  document.getElementById('draftRestoreBar').style.display='none';
+  showDraftBadge(false);
   document.getElementById('recipeModal').classList.add('open');
 }
 function closeRecipeModal(){document.getElementById('recipeModal').classList.remove('open');_pendingImg=null;_imgCleared=false;}
@@ -2075,6 +2196,8 @@ async function saveRecipe(){
     showToast('✓ Rezept gespeichert');
   }
   showLoader(false);
+  sessionStorage.removeItem(DRAFT_KEY);
+  showDraftBadge(false);
   filterRecipes();renderCalendar();closeRecipeModal();
 }
 
@@ -2122,8 +2245,8 @@ function renderIngrRows(){
   }).join('');
 }
 
-function addIngrRow(){_ingrRows.push({amount:'',unit:'g',name:'',mlId:null});renderIngrRows();}
-function delIngrRow(i){if(_ingrRows.length>1)_ingrRows.splice(i,1);else _ingrRows[i]={amount:'',unit:'g',name:'',mlId:null};renderIngrRows();}
+function addIngrRow(){_ingrRows.push({amount:'',unit:'g',name:'',mlId:null});renderIngrRows();scheduleDraft();}
+function delIngrRow(i){if(_ingrRows.length>1)_ingrRows.splice(i,1);else _ingrRows[i]={amount:'',unit:'g',name:'',mlId:null};renderIngrRows();scheduleDraft();}
 function collectIngrRows(){return _ingrRows.filter(r=>r.name.trim()||r.amount).map(r=>({amount:r.amount,unit:r.unit,name:r.name,mlId:r.mlId||null}));}
 
 /* ML PICKER – centered overlay, accessible from anywhere in modal */
@@ -2604,8 +2727,8 @@ function getKalk(id){
   );
   if(k.zutaten.length!==before) changed=true;
 
-  // 4. Portionen aus Rezept aktualisieren wenn geändert
-  if(r?.portions&&k.portionen!==r.portions){k.portionen=r.portions;changed=true;}
+  // 4. Portionen nur setzen wenn noch nie gespeichert (kein manueller Wert)
+  if(r?.portions&&!k._portionenManuell&&k.portionen!==r.portions){k.portionen=r.portions;changed=true;}
 
   if(changed) kalkSave(id,k);
   return k;
@@ -2621,11 +2744,9 @@ function computeKalk(k){
     const vpeG=parseFloat(z.vpeGroesse)||1;
     const rezG=parseFloat(z.rezeptGroesse)||0;
     let klEinheit=0;
-    if(z.einheit==='Schale'||z.einheit==='St'||z.einheit==='Stück'||z.einheit==='Portion'){
-      klEinheit=preis; // full unit cost
-    } else {
-      klEinheit=vpeG>0?preis/vpeG:0;
-    }
+    // Immer Preis / VPE-Größe — egal ob Gewicht, Volumen oder Stück
+    // Sonderfall: vpeGroesse=1 bei Stückeinheiten bedeutet "Preis ist pro Stück"
+    klEinheit=vpeG>0?preis/vpeG:0;
     const rezeptKosten=klEinheit*rezG;
     return{...z,klEinheit,rezeptKosten};
   });
@@ -2882,6 +3003,7 @@ function fmt(n){return isNaN(n)||n===null?'-':(+n).toFixed(2);}
 function kalkSetParam(id,field,val){
   const k=getKalk(id);
   k[field]=field==='portionen'?parseInt(val)||1:parseFloat(val)||0;
+  if(field==='portionen') k._portionenManuell=true; // merken: manuell gesetzt, nicht aus Rezept überschreiben
   kalkSave(id,k);
   // also sync to recipe cost field if vkBrutto changes
   if(field==='vkBrutto'){
