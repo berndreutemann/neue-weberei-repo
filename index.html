@@ -16,6 +16,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-size:15px}
     body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+    #loginScreen{overflow-y:auto!important}
 
     /* HEADER */
     header{background:var(--ink);color:#f4f1eb;height:56px;padding:0 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:300}
@@ -546,8 +547,7 @@
       </div>
       <div class="login-fg">
         <label for="loginPw">Passwort</label>
-        <input id="loginPw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"
-          onkeydown="if(event.key==='Enter')doLogin()"/>
+        <input id="loginPw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
       </div>
       <button class="login-btn" id="loginBtn" onclick="doLogin()">Anmelden</button>
       <div class="login-err" id="loginErr"></div>
