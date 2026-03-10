@@ -503,6 +503,25 @@
     /* ═══ LOGIN SCREEN ═══ */
     #loginScreen{display:none!important}
     #logoutBtn,#userBadge{display:none!important}
+    /* PIN SCREEN */
+    #pinScreen{position:fixed;inset:0;background:var(--ink);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+    #pinScreen.hidden{display:none}
+    .pin-box{background:var(--bg);border-radius:10px;padding:40px 36px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .pin-logo{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--ink);margin-bottom:4px}
+    .pin-logo small{display:block;font-family:'DM Sans',sans-serif;font-size:.65rem;font-weight:300;letter-spacing:.18em;text-transform:uppercase;opacity:.5;margin-top:2px}
+    .pin-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:400;color:var(--ink2);margin:20px 0 18px}
+    .pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:24px}
+    .pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background .15s,border-color .15s}
+    .pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+    .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto}
+    .pin-key{padding:16px;font-size:1.2rem;font-weight:500;font-family:'DM Sans',sans-serif;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;color:var(--ink);transition:background .12s,transform .08s;user-select:none}
+    .pin-key:hover{background:var(--surface2)}
+    .pin-key:active{transform:scale(.94);background:var(--accent-l)}
+    .pin-key.zero{grid-column:2}
+    .pin-key.del{background:none;border-color:transparent;color:var(--ink3);font-size:1rem}
+    .pin-err{color:#c0392b;font-size:.82rem;min-height:20px;margin-top:12px;font-weight:500}
+    .pin-err.shake{animation:shake .3s ease}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
     #loginScreen.hidden{display:none}
     .login-box{background:var(--bg);border-radius:8px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
     .login-logo{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--ink);margin-bottom:4px}
@@ -536,6 +555,36 @@
   </style>
 </head>
 <body>
+
+<!-- ═══ PIN SCREEN ═══ -->
+<div id="pinScreen">
+  <div class="pin-box">
+    <div class="pin-logo">Neue Weberei<small>Küche · Management</small></div>
+    <div class="pin-title">PIN eingeben</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+      <div class="pin-dot" id="pd4"></div>
+      <div class="pin-dot" id="pd5"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key zero" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+    <div class="pin-err" id="pinErr"></div>
+  </div>
+</div>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
 <div id="loginScreen">
@@ -3882,8 +3931,57 @@ function fmtMenge(amt,unit){
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) document.getElementById(id).classList.remove('open');});
 });
 
-// Start app directly without login
-(async()=>{
+
+/* ═══════════════════════════════════════════════════════
+   PIN PROTECTION
+═══════════════════════════════════════════════════════ */
+const _PIN = '130435';
+const _PIN_SESSION_KEY = 'nw_pin_ok';
+let _pinInput = '';
+
+function pinKey(d){
+  if(_pinInput.length >= _PIN.length) return;
+  _pinInput += d;
+  pinUpdateDots();
+  if(_pinInput.length === _PIN.length) setTimeout(pinCheck, 120);
+}
+
+function pinDel(){
+  _pinInput = _pinInput.slice(0,-1);
+  pinUpdateDots();
+  document.getElementById('pinErr').textContent = '';
+}
+
+function pinUpdateDots(){
+  for(let i=0;i<_PIN.length;i++){
+    document.getElementById('pd'+i)?.classList.toggle('filled', i < _pinInput.length);
+  }
+}
+
+function pinCheck(){
+  if(_pinInput === _PIN){
+    sessionStorage.setItem(_PIN_SESSION_KEY,'1');
+    document.getElementById('pinScreen').classList.add('hidden');
+    startApp();
+  } else {
+    _pinInput = '';
+    pinUpdateDots();
+    const err = document.getElementById('pinErr');
+    err.textContent = 'Falscher PIN — bitte erneut versuchen';
+    err.classList.remove('shake');
+    void err.offsetWidth; // reflow to restart animation
+    err.classList.add('shake');
+  }
+}
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if(document.getElementById('pinScreen').classList.contains('hidden')) return;
+  if(e.key >= '0' && e.key <= '9') pinKey(e.key);
+  if(e.key === 'Backspace') pinDel();
+});
+
+async function startApp(){
   showLoader(true);
   try{
     await Promise.all([
@@ -3903,7 +4001,14 @@ function fmtMenge(amt,unit){
   try{filterRecipes();}catch(e){console.error(e);}
   try{renderCalendar();}catch(e){console.error(e);}
   try{loadStammUI();}catch(e){console.error(e);}
-})();
+}
+
+// Check session — if PIN was already entered in this browser session, skip PIN screen
+if(sessionStorage.getItem(_PIN_SESSION_KEY)==='1'){
+  document.getElementById('pinScreen').classList.add('hidden');
+  startApp();
+}
+// else: PIN screen is visible, user must enter PIN
 </script>
 </body>
 </html>
