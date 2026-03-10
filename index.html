@@ -6,7 +6,6 @@
   <meta name="theme-color" content="#1c1c1a"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <title>Neue Weberei · Küche</title>
-  <link rel="manifest" href="manifest.json"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -3550,9 +3549,9 @@ function importAllData(e){
       if(!data||typeof data!=='object') throw new Error('Ungültiges Format');
 
       let msg='Folgende Daten werden importiert:\n';
-      if(data.kalks) msg+='\u2022 '+Object.keys(data.kalks).length+' Kalkulationen\n';
-      if(data.cats)  msg+='\u2022 '+data.cats.length+' Kategorien\n';
-      if(data.stamm) msg+='\u2022 Stammdaten-Parameter\n';
+      if(data.kalks) msg+='• '+Object.keys(data.kalks).length+' Kalkulationen\n';
+      if(data.cats)  msg+='• '+data.cats.length+' Kategorien\n';
+      if(data.stamm) msg+='• Stammdaten-Parameter\n';
       msg+='\nFortfahren?';
       if(!confirm(msg)){e.target.value='';return;}
 
