@@ -2678,7 +2678,7 @@ function renderKalk(id){
         const art=z.mlId?mlById(z.mlId):null;
         const linked=!!art;
         const linkTag=linked
-          ?`<span onclick="kalkSyncArt(${id},${i})" title="Preise aus Artikelstamm: ${escAttr(art.name)}&#10;${art.preis!=null?art.preis.toFixed(2)+' €':'–'} / ${art.vpe||'?'} ${art.einheit||''}&#10;Klicken zum aktualisieren" style="margin-left:6px;cursor:pointer;font-size:.7rem;background:var(--green-l);color:var(--green);border:1px solid #a8d8b3;border-radius:10px;padding:1px 6px;white-space:nowrap">🔗 ${escHtml(art.lieferant||art.name)}</span>`
+          ?`<span onclick="openArticleInStamm(${art.id})" title="Im Artikelstamm öffnen: ${escAttr(art.name)}&#10;${art.preis!=null?art.preis.toFixed(2)+' €':'–'} / ${art.vpe||'?'} ${art.einheit||''}" style="margin-left:6px;cursor:pointer;font-size:.7rem;background:var(--green-l);color:var(--green);border:1px solid #a8d8b3;border-radius:10px;padding:1px 6px;white-space:nowrap">🔗 ${escHtml(art.lieferant||art.name)}</span>`
           :'';
         const vpeStyle=linked?'border-color:var(--green);background:var(--green-l)':'';
         return `<tr>
@@ -2799,6 +2799,14 @@ function kalkRebuildFromRecipe(id){
   kalkSave(id,k);
   renderKalk(id);
   showToast(`✓ ${newZutaten.length} Zutaten eingelesen, ${newZutaten.filter(z=>z.mlId).length} mit Artikelstamm verknüpft`);
+}
+
+function openArticleInStamm(artId){
+  showView('mutterliste', document.querySelectorAll('.nav-tab')[4]);
+  // Wait for view to render, then open the article modal
+  setTimeout(()=>{
+    openMlModal(artId);
+  }, 150);
 }
 
 function kalkSyncArt(id,idx){
