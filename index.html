@@ -10,11 +10,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     :root{--bg:#f4f1eb;--surface:#fff;--surface2:#edeae3;--ink:#1c1c1a;--ink2:#58564f;--ink3:#999690;--accent:#b85c2a;--accent-l:#f0ddd0;--green:#3a7d44;--green-l:#d4edd8;--amber:#c9860a;--amber-l:#fdefd4;--border:#e0dbd2;--r:4px;--sh:0 1px 3px rgba(0,0,0,.07),0 4px 14px rgba(0,0,0,.06)}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-size:15px}
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100dvh;display:flex;flex-direction:column}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 
     /* HEADER */
     header{background:var(--ink);color:#f4f1eb;height:56px;padding:0 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:300}
@@ -40,7 +41,7 @@
     .week-nav button:hover{background:var(--surface2)}
     .week-label{font-family:'Playfair Display',serif;font-size:1rem;min-width:220px}
     .today-btn{width:auto!important;padding:0 12px!important;font-family:'DM Sans',sans-serif!important;font-size:.78rem!important;font-weight:500!important;color:var(--accent)!important;border-color:var(--accent)!important}
-    .cal-scroll{flex:1;overflow:auto;padding:16px 20px 32px}
+    .cal-scroll{flex:1;overflow:auto;padding:16px 20px 32px;min-height:0}
     .cal-grid{display:grid;grid-template-columns:100px repeat(5,1fr);border:1px solid var(--border);border-radius:var(--r);background:var(--border);gap:1px;min-width:760px}
     .cal-head-cell{background:var(--ink);color:#f4f1eb;padding:10px 12px;text-align:center}
     .cal-head-cell .dow{font-size:.7rem;font-weight:300;letter-spacing:.1em;text-transform:uppercase;opacity:.6}
@@ -77,7 +78,7 @@
     .chips{display:flex;gap:5px;flex-wrap:wrap}
     .chip{padding:4px 11px;border-radius:20px;font-size:.74rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--ink2);transition:all .15s;white-space:nowrap}
     .chip.active{background:var(--ink);color:#f4f1eb;border-color:var(--ink)}
-    .recipe-main{flex:1;padding:20px;overflow-y:auto}
+    .recipe-main{flex:1;padding:20px;overflow-y:auto;min-height:0}
     .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
     .sec-title{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:400}
     .cnt{font-size:.78rem;color:var(--ink3)}
@@ -229,6 +230,23 @@
     .rcard-kpi-item.kpi-vk .rcard-kpi-lbl{color:var(--ink3)}
     .rcard-kpi-item.kpi-vk .rcard-kpi-val{color:var(--ink)}
 
+
+    /* METRO PDF IMPORT MODAL */
+    .pdf-import-modal{max-width:820px}
+    .pdf-import-table{width:100%;border-collapse:collapse;font-size:.82rem}
+    .pdf-import-table th{background:var(--ink);color:#f4f1eb;padding:7px 10px;text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+    .pdf-import-table td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+    .pdf-import-table tr.row-new td{background:#f0fdf4}
+    .pdf-import-table tr.row-update td{background:#fffbeb}
+    .pdf-import-table tr.row-skip td{background:#f9f9f9;opacity:.55}
+    .pdf-import-table .badge-new{background:var(--green-l);color:var(--green);border:1px solid #a8d8b3;border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:600;white-space:nowrap}
+    .pdf-import-table .badge-update{background:var(--amber-l);color:var(--amber);border:1px solid #f5d595;border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:600;white-space:nowrap}
+    .pdf-import-table .badge-dup{background:var(--surface2);color:var(--ink3);border:1px solid var(--border);border-radius:20px;padding:1px 7px;font-size:.7rem;white-space:nowrap}
+    .pdf-import-table .price-old{text-decoration:line-through;color:var(--ink3);margin-right:4px;font-size:.75rem}
+    .pdf-import-table .price-new{color:var(--amber);font-weight:600}
+    .pdf-import-summary{display:flex;gap:16px;padding:12px 0;font-size:.83rem;flex-wrap:wrap}
+    .pdf-import-summary span{display:flex;align-items:center;gap:5px}
+
     /* MONATSANSICHT */
     .cal-grid.month-view{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:auto}
     .cal-month-head{background:var(--ink);color:#f4f1eb;padding:6px 8px;text-align:center;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em}
@@ -280,7 +298,7 @@
     @media print{header,.cal-toolbar,.recipe-toolbar,.modal-ov,.detail-bar{display:none!important}.view{display:flex!important}.detail-ov{position:static}}
 
     /* ═══ KALKULATION ═══ */
-    .kalk-main{flex:1;overflow-y:auto;padding:24px 20px}
+    .kalk-main{flex:1;overflow-y:auto;padding:24px 20px;min-height:0}
     .kalk-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
     .kalk-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:400}
     .kalk-recipe-select{display:flex;align-items:center;gap:10px}
@@ -338,7 +356,7 @@
     .weq-bar-fill span{font-size:.7rem;font-weight:600;color:white;white-space:nowrap}
 
     /* STAMMDATEN */
-    .stamm-main{flex:1;overflow-y:auto;padding:24px 20px}
+    .stamm-main{flex:1;overflow-y:auto;padding:24px 20px;min-height:0}
     .stamm-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:560px}
     .stamm-title{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:16px}
     .stamm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -376,11 +394,11 @@
     .kalk-new-btn:hover{border-color:var(--accent);color:var(--accent)}
 
     /* ═══ MUTTERLISTE / ARTIKELSTAMM ═══ */
-    .ml-main{flex:1;overflow-y:auto;padding:0}
-    .ml-toolbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:10}
-    .ml-body{padding:20px}
+    .ml-main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+    .ml-toolbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;flex-shrink:0;z-index:10}
+    .ml-body{padding:20px;flex:1;overflow-y:auto;overflow-x:auto;min-height:0}
     .ml-table{width:100%;border-collapse:collapse;font-size:.84rem}
-    .ml-table th{background:var(--ink);color:#f4f1eb;padding:9px 10px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;white-space:nowrap;position:sticky;top:0}
+    .ml-table th{background:var(--ink);color:#f4f1eb;padding:9px 10px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2}
     .ml-table th.r,.ml-table td.r{text-align:right}
     .ml-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
     .ml-table tr:hover td{background:var(--surface2);color:var(--ink)}
@@ -449,7 +467,7 @@
     /* ═══ EINKAUFSLISTE ═══ */
     .eink-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
     .eink-toolbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .eink-body{flex:1;overflow-y:auto;padding:20px}
+    .eink-body{flex:1;overflow-y:auto;padding:20px;min-height:0}
     .eink-week-sel{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
     .eink-wbtn{padding:5px 12px;border-radius:20px;font-size:.78rem;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--ink2);transition:all .15s;white-space:nowrap}
     .eink-wbtn:hover{border-color:var(--accent);color:var(--accent)}
@@ -555,6 +573,22 @@
       <button class="login-btn" id="registerBtn" onclick="doRegister()">Konto erstellen</button>
       <div class="login-err" id="registerErr"></div>
       <div class="login-toggle">Bereits registriert? <a href="#" onclick="toggleAuthForm(event)">Anmelden</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- METRO PDF IMPORT MODAL -->
+<div class="modal-ov" id="pdfImportModal">
+  <div class="modal pdf-import-modal">
+    <div class="modal-h">
+      <h3 class="modal-title">📄 METRO PDF-Import – Vorschau</h3>
+      <button class="close-x" onclick="closePdfImportModal()">✕</button>
+    </div>
+    <div class="modal-b" id="pdfImportBody"></div>
+    <div class="modal-f">
+      <button class="btn-s" onclick="closePdfImportModal()">Abbrechen</button>
+      <button class="btn-s" id="pdfImportSkipBtn" onclick="executePdfImport(false)">Nur Neue importieren</button>
+      <button class="btn-s p" id="pdfImportAllBtn" onclick="executePdfImport(true)">Alle importieren (inkl. Preisänderungen)</button>
     </div>
   </div>
 </div>
@@ -838,6 +872,8 @@
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn-s" onclick="openMlModal()">+ Artikel</button>
         <button class="btn-s" onclick="downloadMlTemplate()" title="CSV-Vorlage herunterladen">⬇ CSV-Vorlage</button>
+        <button class="btn-s p" style="background:#e63000;border-color:#e63000" onclick="document.getElementById('mlPdfInput').click()" title="METRO PDF-Bestellliste importieren">📄 METRO PDF-Import</button>
+        <input type="file" id="mlPdfInput" accept=".pdf" style="display:none" onchange="importMetroPdf(event)"/>
         <button class="btn-s p" onclick="document.getElementById('mlImportInput').click()">⬆ CSV Import</button>
         <input type="file" id="mlImportInput" accept=".csv,.txt" style="display:none" onchange="importMlCsv(event)"/>
       </div>
@@ -2317,42 +2353,47 @@ function kalkLoad(id){
 function kalkSave(id,data){
   localStorage.setItem('nw_kalk_'+id,JSON.stringify(data));
 }
+function resolveArticleForIngr(ingr){
+  // 1. Try mlId (current Supabase integer)
+  let art=ingr.mlId?mlById(ingr.mlId):null;
+  // 2. Fallback: search by name in Artikelstamm (handles old timestamp IDs)
+  if(!art&&ingr.name) art=mlByName(ingr.name);
+  return art||null;
+}
+
 function getKalk(id){
   let k=kalkLoad(id);
+  const r=recipes.find(x=>x.id===id);
+
   if(k){
-    // Sync mlId + prices from recipe ingredients into existing kalk
-    // Match by ingredient name (case-insensitive) to survive reordering
-    const r=recipes.find(x=>x.id===id);
-    if(r?.ingredients){
-      r.ingredients.forEach(ingr=>{
-        if(!ingr.mlId)return;
-        const lname=ingr.name.trim().toLowerCase();
-        const match=(k.zutaten||[]).find(z=>z.name.trim().toLowerCase()===lname);
-        if(match){
-          if(!match.mlId) match.mlId=ingr.mlId;
-          // Auto-fill price if still 0
-          const art=mlById(ingr.mlId);
-          if(art&&(!match.vpePreis||match.vpePreis===0)){
-            if(art.preis!=null) match.vpePreis=art.preis;
-            if(art.vpe) match.vpeGroesse=art.vpe;
-            if(art.einheit) match.einheit=art.einheit;
-          }
-        }
-      });
-    }
-    kalkSave(id,k); // persist any auto-filled prices
+    // Sync each kalk zutat: try to find matching article by name in both recipe ingredients and mutterliste
+    let changed=false;
+    (k.zutaten||[]).forEach((z,zi)=>{
+      // Find matching recipe ingredient by name
+      const recipeIngr=(r?.ingredients||[]).find(i=>i.name&&z.name&&i.name.trim().toLowerCase()===z.name.trim().toLowerCase());
+      // Resolve article: prefer recipe's mlId, fallback to name lookup
+      const art=recipeIngr?resolveArticleForIngr(recipeIngr):mlByName(z.name);
+      if(art){
+        // Update mlId to current Supabase ID
+        if(z.mlId!==art.id){z.mlId=art.id;changed=true;}
+        // Fill price if still missing/zero
+        if((!z.vpePreis||z.vpePreis===0)&&art.preis!=null){z.vpePreis=art.preis;changed=true;}
+        if((!z.vpeGroesse||z.vpeGroesse<=1)&&art.vpe){z.vpeGroesse=art.vpe;changed=true;}
+        if(!z.einheit&&art.einheit){z.einheit=art.einheit;changed=true;}
+      }
+    });
+    if(changed) kalkSave(id,k);
   }
+
   if(!k){
-    // prefill from recipe data
-    const r=recipes.find(x=>x.id===id);
     k={
       vkBrutto: r?.cost ? +(r.cost*(1+stamm.mwst/100)).toFixed(2) : 0,
       portionen: r?.portions||4,
       schwund: stamm.schwund,
       zutaten: (r?.ingredients||[]).map(i=>{
-        const art=i.mlId?mlById(i.mlId):null;
+        const art=resolveArticleForIngr(i);
         return {
-          name:i.name, mlId:i.mlId||null,
+          name:i.name, mlId:art?.id||null,
           vpePreis:art?.preis??0,
           vpeGroesse:art?.vpe??1000,
           einheit:art?.einheit||i.unit||'g',
@@ -2547,8 +2588,9 @@ function renderKalk(id){
       <h3>Zutaten &amp; Einkaufspreise</h3>
       <div class="ksh-actions">
         <span style="font-size:.72rem;color:rgba(255,255,255,.45);margin-right:4px">VPE-Preise nur über Artikelstamm änderbar</span>
+        <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:rgba(255,255,255,.1)" onclick="kalkRebuildFromRecipe(${id})" title="Zutaten komplett aus Rezept neu aufbauen und Artikelstamm verknüpfen">🔄 Zutaten neu einlesen</button>
         <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:rgba(255,255,255,.1)" onclick="kalkAddZutat(${id})">+ Zutat</button>
-        <button class="btn-s p" onclick="kalkSyncAll(${id})" title="Alle verknüpften Preise aus Artikelstamm neu laden">📦 Artikelstamm</button>
+        <button class="btn-s p" onclick="kalkSyncAll(${id})" title="Alle verknüpften Preise aus Artikelstamm aktualisieren">📦 Artikelstamm</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -2667,6 +2709,32 @@ function kalkDelZutat(id,idx){
 
 function pauseKalk(id){showToast('Kalkulation pausiert (noch nicht implementiert)');}
 
+function kalkRebuildFromRecipe(id){
+  if(!confirm('Zutaten komplett aus dem Rezept neu einlesen?\nBestehende VPE-Preise und -Mengen bleiben erhalten, neue Verknüpfungen werden hinzugefügt.'))return;
+  const r=recipes.find(x=>x.id===id);
+  if(!r)return;
+  const k=getKalk(id);
+  // Rebuild zutaten list from recipe, preserving existing price data where names match
+  const newZutaten=(r.ingredients||[]).map(i=>{
+    const art=resolveArticleForIngr(i);
+    // Try to find existing kalk entry for this ingredient (by name)
+    const existing=(k.zutaten||[]).find(z=>z.name&&i.name&&z.name.trim().toLowerCase()===i.name.trim().toLowerCase());
+    return {
+      name:i.name,
+      mlId:art?.id||null,
+      // Keep existing price if set and article matches, otherwise use article price
+      vpePreis:existing?.vpePreis>0?existing.vpePreis:(art?.preis??0),
+      vpeGroesse:existing?.vpeGroesse>1?existing.vpeGroesse:(art?.vpe??1000),
+      einheit:art?.einheit||existing?.einheit||i.unit||'g',
+      rezeptGroesse:parseFloat(i.amount)||existing?.rezeptGroesse||0
+    };
+  });
+  k.zutaten=newZutaten;
+  kalkSave(id,k);
+  renderKalk(id);
+  showToast(`✓ ${newZutaten.length} Zutaten eingelesen, ${newZutaten.filter(z=>z.mlId).length} mit Artikelstamm verknüpft`);
+}
+
 function kalkSyncArt(id,idx){
   const k=getKalk(id);
   const z=k.zutaten[idx];if(!z||!z.mlId)return;
@@ -2714,7 +2782,17 @@ let mlSort={col:'lieferant',dir:'asc'};
 let mlSelected=new Set();
 
 function mlPersist(){/* data saved via Supabase directly */}
-function mlById(id){return mutterliste.find(x=>x.id===id);}
+function mlById(id){
+  if(id==null)return null;
+  // Try exact ID match first (Supabase integer)
+  let art=mutterliste.find(x=>x.id===id||x.id===+id);
+  return art||null;
+}
+function mlByName(name){
+  if(!name)return null;
+  const n=name.trim().toLowerCase();
+  return mutterliste.find(x=>x.name&&x.name.trim().toLowerCase()===n)||null;
+}
 
 /* ─── SCHNELLEINGABE ─── */
 let _qFeedbackTimer=null;
@@ -2915,8 +2993,7 @@ function renderMutterliste(){
 
   wrap.innerHTML=`
     <div style="font-size:.78rem;color:var(--ink3);margin-bottom:10px">${items.length} von ${mutterliste.length} Artikeln${mlSelected.size?` · <strong style="color:var(--accent)">${mlSelected.size} markiert</strong>`:''}</div>
-    <div style="overflow-x:auto">
-    <table class="ml-table">
+    <table class="ml-table" style="min-width:900px">
       <thead><tr>
         <th class="ml-cb-cell"><input type="checkbox" class="ml-cb" id="mlSelAll" onchange="mlToggleAll(this)" title="Alle auswählen"/></th>
         ${th('Lieferant','lieferant')}
@@ -2960,8 +3037,7 @@ function renderMutterliste(){
           <td><button class="btn-s" onclick="openMlModal(${a.id})" title="Vollständig bearbeiten / löschen">⋯</button></td>
         </tr>`).join('')}
       </tbody>
-    </table>
-    </div>`;
+    </table>`;
 }
 
 /* ─── MODAL ─── */
@@ -3116,6 +3192,248 @@ function importMlCsv(e){
     alert(msg);
   };
   reader.readAsText(f,'utf-8');
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   METRO PDF IMPORT
+═══════════════════════════════════════════════════════ */
+let _pdfImportItems = []; // parsed items for preview
+
+function closePdfImportModal(){
+  document.getElementById('pdfImportModal').classList.remove('open');
+  _pdfImportItems = [];
+  document.getElementById('mlPdfInput').value = '';
+}
+
+async function importMetroPdf(e){
+  const file = e.target.files[0];
+  if(!file) return;
+
+  // Configure PDF.js worker
+  if(typeof pdfjsLib === 'undefined'){
+    alert('PDF.js nicht geladen. Bitte Seite neu laden.');
+    return;
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  showLoader(true);
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let fullText = '';
+
+    for(let p = 1; p <= pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const tc = await page.getTextContent();
+      // Collect items with their x,y positions for layout parsing
+      const items = tc.items.map(it=>({str:it.str.trim(), x:Math.round(it.transform[4]), y:Math.round(it.transform[5])}));
+      // Group by y-position (same line = within 3px)
+      const lines = [];
+      items.forEach(it=>{
+        if(!it.str) return;
+        const line = lines.find(l=>Math.abs(l.y - it.y) <= 3);
+        if(line){ line.parts.push(it); }
+        else { lines.push({y:it.y, parts:[it]}); }
+      });
+      lines.sort((a,b)=>b.y-a.y); // top to bottom
+      lines.forEach(l=>{
+        l.parts.sort((a,b)=>a.x-b.x);
+        fullText += l.parts.map(p=>p.str).join(' ') + '\n';
+      });
+      fullText += '\n---PAGE---\n';
+    }
+
+    const parsed = parseMetroText(fullText);
+    showLoader(false);
+
+    if(!parsed.length){
+      alert('Keine Artikel im METRO-Format gefunden.\n\nHinweis: Die Datei muss eine METRO-Bestellliste oder Katalog-PDF sein.');
+      return;
+    }
+
+    showPdfImportPreview(parsed);
+  } catch(err){
+    showLoader(false);
+    console.error('PDF Import Fehler:', err);
+    alert('Fehler beim Lesen der PDF-Datei:\n' + err.message);
+  }
+}
+
+function parseMetroText(text){
+  const items = [];
+  const lines = text.split('\n');
+
+  // Metro PDF patterns:
+  // Pattern A: "3312 Lasagne Bolognese 1 Kt. à 30 St. 119,97"
+  // Pattern B: "Art.-Nr. Name ... Preis"
+  // We look for lines with an article number (4-6 digits) + name + price
+
+  const pricePattern = /(\d{1,3}(?:[,.]\d{3})*(?:[,.]\d{2}))\s*€?$/;
+  const artNrPattern = /^(\d{4,6})\s+/;
+
+  for(let i = 0; i < lines.length; i++){
+    const line = lines[i].trim();
+    if(!line || line === '---PAGE---') continue;
+
+    // Try to match Metro article line
+    // Format: ARTNR Name [Menge Einheit] Preis
+    const artMatch = line.match(/^(\d{4,6})\s+(.+?)\s+(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*€?$/);
+    if(artMatch){
+      const artNr = artMatch[1];
+      let rest = artMatch[2].trim();
+      const preisStr = artMatch[3].replace('.','').replace(',','.');
+      const preis = parseFloat(preisStr);
+      if(isNaN(preis) || preis <= 0) continue;
+
+      // Extract VPE info from rest: "1 Kt. à 30 St." or "1 x 5 kg" etc.
+      let vpe = 1, einheit = 'Stk.', hinweis = '';
+      const vpeMatch = rest.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(?:Kt\.?|Pack|Pkg\.?|Karton|Bündel)?\s*[àxa×*]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|St\.?|Stk\.?|Pck\.?)?(.*)$/i);
+      if(vpeMatch){
+        const name = vpeMatch[1].trim();
+        const qty = parseFloat(vpeMatch[3].replace(',','.'));
+        const unit = vpeMatch[4]||'Stk.';
+        const extra = vpeMatch[5]||'';
+        vpe = qty;
+        einheit = unit.replace('St.','Stk.').replace('Stk','Stk.');
+        hinweis = (vpeMatch[2]+'x'+vpeMatch[3]+' '+unit+extra).trim();
+        rest = name || rest;
+      } else {
+        // Try simpler "X kg" or "X Stk" at end
+        const simpleUnit = rest.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|Stk?\.?)\s*$/i);
+        if(simpleUnit){
+          rest = simpleUnit[1].trim() || rest;
+          vpe = parseFloat(simpleUnit[2].replace(',','.'));
+          einheit = simpleUnit[3].replace('St.','Stk.').replace('Stk','Stk.');
+        }
+      }
+
+      const name = rest.replace(/\s+/g,' ').trim();
+      if(name.length < 2) continue;
+
+      items.push({artNr, name, preis, vpe, einheit, hinweis, lieferant:'METRO'});
+      continue;
+    }
+
+    // Pattern B: Line with just art-nr and name, price on next/same line
+    // Try: lines where next line has a price
+    const nameMatch = line.match(/^(\d{4,6})\s+(.{3,60})$/);
+    if(nameMatch && i+1 < lines.length){
+      const nextLine = lines[i+1].trim();
+      const np = nextLine.match(/^(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*€?/);
+      if(np){
+        const preis = parseFloat(np[1].replace('.','').replace(',','.'));
+        if(!isNaN(preis) && preis > 0){
+          items.push({artNr: nameMatch[1], name: nameMatch[2].trim(), preis, vpe:1, einheit:'Stk.', hinweis:'', lieferant:'METRO'});
+          i++; // skip next line
+        }
+      }
+    }
+  }
+
+  // Deduplicate by artNr within parsed items
+  const seen = new Set();
+  return items.filter(it=>{
+    const key = it.artNr+'_'+it.name.toLowerCase().slice(0,20);
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+}
+
+function showPdfImportPreview(parsed){
+  _pdfImportItems = parsed.map(item=>{
+    // Check against existing mutterliste
+    const byNr = mutterliste.find(a=>a.artNr && String(a.artNr).trim()===String(item.artNr).trim() && (a.lieferant||'').toLowerCase()==='metro');
+    const byName = !byNr ? mutterliste.find(a=>a.name&&a.name.trim().toLowerCase()===item.name.trim().toLowerCase()) : null;
+    const existing = byNr || byName;
+
+    let status = 'new'; // 'new' | 'update' | 'skip'
+    let priceChanged = false;
+    if(existing){
+      if(existing.preis !== item.preis){ status='update'; priceChanged=true; }
+      else { status='skip'; }
+      item._existingId = existing.id;
+      item._oldPreis = existing.preis;
+    }
+    item._status = status;
+    item._priceChanged = priceChanged;
+    return item;
+  });
+
+  const newCount = _pdfImportItems.filter(i=>i._status==='new').length;
+  const updateCount = _pdfImportItems.filter(i=>i._status==='update').length;
+  const skipCount = _pdfImportItems.filter(i=>i._status==='skip').length;
+
+  const rows = _pdfImportItems.map((item,i)=>{
+    const statusBadge = item._status==='new'
+      ? '<span class="badge-new">Neu</span>'
+      : item._status==='update'
+        ? '<span class="badge-update">Preisänderung</span>'
+        : '<span class="badge-dup">Unverändert</span>';
+    const preisCell = item._status==='update'
+      ? `<span class="price-old">${item._oldPreis!=null?item._oldPreis.toFixed(2):'–'} €</span><span class="price-new">${item.preis.toFixed(2)} €</span>`
+      : `${item.preis.toFixed(2)} €`;
+    const rowClass = item._status==='new'?'row-new':item._status==='update'?'row-update':'row-skip';
+    return `<tr class="${rowClass}">
+      <td>${statusBadge}</td>
+      <td>${escHtml(item.artNr)}</td>
+      <td>${escHtml(item.name)}</td>
+      <td style="text-align:right;white-space:nowrap">${preisCell}</td>
+      <td>${item.vpe!=null?item.vpe:''}</td>
+      <td>${escHtml(item.einheit)}</td>
+      <td style="font-size:.75rem;color:var(--ink3)">${escHtml(item.hinweis||'')}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pdfImportBody').innerHTML = `
+    <div class="pdf-import-summary">
+      <span>📄 <strong>${_pdfImportItems.length}</strong> Artikel erkannt</span>
+      <span style="color:var(--green)">✚ <strong>${newCount}</strong> Neu</span>
+      <span style="color:var(--amber)">↺ <strong>${updateCount}</strong> Preisänderungen</span>
+      <span style="color:var(--ink3)">= <strong>${skipCount}</strong> Unverändert</span>
+    </div>
+    <div style="overflow-x:auto;max-height:55vh;overflow-y:auto">
+      <table class="pdf-import-table">
+        <thead><tr>
+          <th>Status</th><th>Art.-Nr.</th><th>Artikelname</th>
+          <th class="r">Preis €</th><th>VPE</th><th>Einheit</th><th>Hinweis</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('pdfImportModal').classList.add('open');
+}
+
+async function executePdfImport(includeUpdates){
+  const toImport = _pdfImportItems.filter(i=>i._status==='new'||(includeUpdates&&i._status==='update'));
+  if(!toImport.length){ showToast('Nichts zu importieren.'); closePdfImportModal(); return; }
+
+  showLoader(true);
+  let added=0, updated=0;
+
+  for(const item of toImport){
+    if(item._status==='new'){
+      const newArt = {lieferant:'METRO', artNr:item.artNr, name:item.name, preis:item.preis, vpe:item.vpe, einheit:item.einheit, alt:item.hinweis||'', active:true};
+      const dbId = await saveArticleToDb(newArt, null);
+      if(dbId){ newArt.id=dbId; newArt._dbId=dbId; mutterliste.push(newArt); added++; }
+    } else if(item._status==='update' && item._existingId){
+      const existing = mutterliste.find(a=>a.id===item._existingId);
+      if(existing){
+        existing.preis = item.preis;
+        if(item.vpe) existing.vpe = item.vpe;
+        if(item.einheit) existing.einheit = item.einheit;
+        if(item.hinweis) existing.alt = item.hinweis;
+        await saveArticleToDb(existing, existing._dbId||existing.id);
+        updated++;
+      }
+    }
+  }
+
+  showLoader(false);
+  renderMutterliste();
+  closePdfImportModal();
+  showToast(`✓ METRO Import: ${added} neue Artikel · ${updated} Preise aktualisiert`, 4000);
 }
 
 /* ─── SAMPLE DATA ─── */
@@ -3350,7 +3668,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Modal close on backdrop click
-['recipeModal','dayModal','assignModal','mlModal'].forEach(id=>{
+['recipeModal','dayModal','assignModal','mlModal','pdfImportModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) document.getElementById(id).classList.remove('open');});
 });
 
