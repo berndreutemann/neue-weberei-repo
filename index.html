@@ -771,7 +771,7 @@
         <div class="fg"><label>Jahreszeit</label>
           <select id="fSeason"><option value="">–</option><option>Frühling</option><option>Sommer</option><option>Herbst</option><option>Winter</option><option>Ganzjährig</option></select>
         </div>
-        <div class="fg"><label>Kosten / Portion (€)</label><input id="fCost" type="number" step="0.01" min="0" placeholder="3.50"/></div>
+        <div class="fg"><label>Kosten / Portion (€) <span style="font-size:.72rem;font-weight:400;color:var(--ink3)">(aus Kalkulation)</span></label><input id="fCost" type="number" step="0.01" min="0" placeholder="3.50" readonly style="background:var(--surface2);color:var(--ink2);cursor:default"/></div>
       </div>
       <div class="fg"><label>Tags (Komma getrennt)</label><input id="fTags" placeholder="vegetarisch, glutenfrei …"/></div>
       <div class="fg"><label>Allergene (Komma getrennt)</label><input id="fAllergens" placeholder="Gluten, Laktose …"/></div>
@@ -2004,7 +2004,9 @@ function editRecipe(id){
   document.getElementById('fPort').value=r.portions||4;
   document.getElementById('fTime').value=r.time||'';
   document.getElementById('fSeason').value=r.season||'';
-  document.getElementById('fCost').value=r.cost||'';
+  // Auto-fill cost from Kalkulation (always use computed value)
+  const _ck = getKalk(id); const _cc = computeKalk(_ck);
+  document.getElementById('fCost').value = _cc.warenkosten > 0 ? _cc.warenkosten.toFixed(2) : (r.cost||'');
   document.getElementById('fTags').value=(r.tags||[]).join(', ');
   document.getElementById('fAllergens').value=(r.allergens||[]).join(', ');
   document.getElementById('fIngr')&&(document.getElementById('fIngr').value=(r.ingredients||[]).map(i=>`${i.amount} ${i.unit} ${i.name}`).join('\n'));
@@ -3787,7 +3789,8 @@ function buildShoppingList(){
             existing.totalAmount+=scaledAmt;
             if(!existing.rezepte.includes(r.name))existing.rezepte.push(r.name);
           } else {
-            const article=mlId?mlById(mlId):null;
+            // Try mlId first, then name fallback — so linked articles always get correct Lieferant
+            const article=resolveArticleForIngr(ing);
             map.set(mapKey,{
               mapKey,mlId,article,
               name:article?article.name:ing.name,
