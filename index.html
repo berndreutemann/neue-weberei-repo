@@ -300,9 +300,68 @@
 
     @media(max-width:640px){.fr{grid-template-columns:1fr}.cal-scroll{padding:8px}header{padding:0 12px}.logo small{display:none}}
     @media print{header,.cal-toolbar,.recipe-toolbar,.modal-ov,.detail-bar{display:none!important}.view{display:flex!important}.detail-ov{position:static}}
+    /* PRINT WINDOW */
+    #printWindow{display:none}
+    @media print{
+      #printWindow{display:block!important}
+      body > *:not(#printWindow){display:none!important}
+      #printWindow{position:fixed;inset:0;background:#fff;z-index:99999;padding:0;margin:0}
+    }
 
     /* ═══ KALKULATION ═══ */
-    .kalk-main{flex:1;overflow-y:auto;padding:24px 20px;min-height:0}
+    /* ── UNIFIED REZEPT+KALK VIEW ── */
+    .kalk-main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+    .rkv-hero{height:200px;background:var(--surface2);position:relative;overflow:hidden;flex-shrink:0}
+    .rkv-hero img{width:100%;height:100%;object-fit:cover;display:block}
+    .rkv-hero-emoji{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:5rem}
+    .rkv-hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0) 35%,rgba(0,0,0,.6));display:flex;align-items:flex-end;padding:16px 22px;gap:10px}
+    .rkv-hero-name{font-family:'Playfair Display',serif;font-size:1.6rem;color:#fff;font-weight:400;flex:1;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+    .rkv-hero-btn{color:white;font-size:.72rem;font-weight:600;background:rgba(0,0,0,.45);padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.25);cursor:pointer;white-space:nowrap;flex-shrink:0}
+    .rkv-hero-btn:hover{background:rgba(0,0,0,.65)}
+    /* tab bar */
+    .rkv-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;padding:0 20px}
+    .rkv-tab{padding:11px 16px;font-size:.82rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--ink3);transition:color .12s,border-color .12s;white-space:nowrap;user-select:none}
+    .rkv-tab:hover{color:var(--ink)}
+    .rkv-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    /* tab body */
+    .rkv-body{flex:1;overflow-y:auto;min-height:0}
+    .rkv-pane{display:none;padding:22px 22px 40px}
+    .rkv-pane.active{display:block}
+    /* overview layout */
+    .rkv-overview{display:grid;grid-template-columns:1fr 300px;gap:22px}
+    @media(max-width:860px){.rkv-overview{grid-template-columns:1fr}}
+    /* meta tags */
+    .rkv-meta{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+    .rkv-meta-tag{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:.76rem;color:var(--ink2)}
+    .rkv-meta-tag.cat{background:var(--accent-l);color:var(--accent);border-color:transparent;font-size:.67rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+    /* kpi strip */
+    .rkv-kpis{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+    .rkv-kpi{padding:10px 12px;border-right:1px solid var(--border)}
+    .rkv-kpi:last-child{border-right:none}
+    .rkv-kpi.dark{background:var(--ink)}
+    .rkv-kpi-l{font-size:.59rem;text-transform:uppercase;letter-spacing:.09em;color:var(--ink3);margin-bottom:2px}
+    .rkv-kpi.dark .rkv-kpi-l{color:rgba(255,255,255,.45)}
+    .rkv-kpi-v{font-size:1rem;font-weight:600;color:var(--ink)}
+    .rkv-kpi.dark .rkv-kpi-v{color:#fff}
+    .rkv-kpi-v.green{color:var(--green)}
+    .rkv-kpi-v.amber{color:var(--amber)}
+    .rkv-kpi-v.red{color:#c0392b}
+    /* weq bar */
+    .rkv-weqwrap{margin-bottom:18px}
+    .rkv-weq-lbl{display:flex;justify-content:space-between;font-size:.7rem;color:var(--ink3);margin-bottom:5px}
+    .rkv-weq-track{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+    .rkv-weq-fill{height:100%;border-radius:3px;transition:width .5s ease}
+    /* warn box */
+    .rkv-warn{background:var(--amber-l);border:1px solid #e8d48a;border-radius:var(--r);padding:9px 13px;font-size:.78rem;color:var(--amber);display:flex;gap:8px;margin-bottom:0}
+    .rkv-ok{background:var(--green-l);border:1px solid #a8d8b3;border-radius:var(--r);padding:9px 13px;font-size:.78rem;color:var(--green);display:flex;gap:8px;margin-bottom:0}
+    /* right column params */
+    .rkv-sec-title{font-family:'Playfair Display',serif;font-size:.95rem;margin-bottom:12px;color:var(--ink)}
+    .rkv-divider{height:1px;background:var(--border);margin:16px 0}
+    /* Zubereitung steps */
+    .rkv-steps{display:flex;flex-direction:column;gap:12px}
+    .rkv-step{display:flex;gap:12px;align-items:flex-start}
+    .rkv-step-n{width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;color:var(--ink2)}
+    .rkv-step-t{font-size:.87rem;color:var(--ink2);line-height:1.55;padding-top:4px}
     .kalk-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
     .kalk-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:400}
     .kalk-recipe-select{display:flex;align-items:center;gap:10px}
@@ -2653,192 +2712,217 @@ function openKalk(id){
 
 function renderKalk(id){
   const r=recipes.find(x=>x.id===id);
-  if(!r){document.getElementById('kalkMain').innerHTML='<div class="empty"><div class="ei">🧮</div><p>Kein Rezept ausgewählt.</p></div>';return;}
+  const el=document.getElementById('kalkMain');
+  if(!r){el.innerHTML='<div class="empty"><div class="ei">🧮</div><p>Kein Rezept ausgewählt.</p></div>';return;}
   const k=getKalk(id);
   const c=computeKalk(k);
+  const img=imgLoad(id);
 
-  const weqColor=c.weq>=stamm.weqCrit?'red':c.weq>=stamm.weqWarn?'amber':'green';
-  const weqBarColor=c.weq>=stamm.weqCrit?'#c0392b':c.weq>=stamm.weqWarn?'#c9860a':'#3a7d44';
+  const weqColor=c.weq>=stamm.weqCrit?'#c0392b':c.weq>=stamm.weqWarn?'#c9860a':'#3a7d44';
+  const weqCls=c.weq>=stamm.weqCrit?'red':c.weq>=stamm.weqWarn?'amber':'green';
+  const dbCls=c.db<0?'red':c.db<2?'amber':'green';
   const barW=Math.min(100,c.weq).toFixed(1);
-  const dbColor=c.db<0?'red':c.db<2?'amber':'green';
 
-  document.getElementById('kalkMain').innerHTML=`
-  <div class="kalk-header">
-    <div>
-      <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:4px">${r.category}</div>
-      <div class="kalk-title">${r.name}</div>
-      <div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;font-size:.78rem;color:var(--ink2)">
-        ${k.portionen?`<span>👥 ${k.portionen} Rezept-Port.</span>`:''}
-        ${r.time?`<span>${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''}
-        ${r.season?`<span>🍃 ${r.season}</span>`:''}
-      </div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-s" onclick="editRecipe(${r.id})">✏️ Bearbeiten</button>
-      <button class="btn-s" onclick="pauseKalk(${id})" title="Pausieren">⏸</button>
-      <button class="btn-s p" onclick="exportKalkPrint(${id})">🖨 Drucken</button>
+  // ── ZUTATEN ROWS ──
+  const zutRows=c.zutaten.map((z,i)=>{
+    const art=z.mlId?mlById(z.mlId):null;
+    const linked=!!art;
+    const linkTag=linked
+      ?`<div style="margin-top:3px"><span onclick="openArticleInStamm(${art.id})" style="cursor:pointer;font-size:.7rem;background:var(--green-l);color:var(--green);border:1px solid #a8d8b3;border-radius:10px;padding:1px 7px;white-space:nowrap">🔗 ${escHtml(art.lieferant||art.name)}</span></div>`
+      :`<div style="margin-top:2px;font-size:.69rem;color:var(--ink3);font-style:italic">kein Artikel verknüpft</div>`;
+    const vpeStyle=linked?'border-color:var(--green);background:var(--green-l)':'';
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border)">
+        <div style="font-size:.87rem;font-weight:500;color:var(--ink)">${escHtml(z.name)}</div>${linkTag}
+      </td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-size:.87rem;color:var(--ink2);white-space:nowrap">${z.rezeptGroesse||0}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:.83rem;color:var(--ink3)">${escHtml(z.einheit||'')}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border)"><input type="number" step="0.01" min="0" class="num-inp" value="${z.vpePreis||''}" placeholder="0.00" onchange="kalkZutatSet(${id},${i},'vpePreis',this.value)" style="width:80px;${vpeStyle}"/></td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border)"><input type="number" step="1" min="0" class="num-inp" value="${z.vpeGroesse||''}" placeholder="1000" onchange="kalkZutatSet(${id},${i},'vpeGroesse',this.value)" style="width:72px;${vpeStyle}"/></td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-size:.8rem;color:var(--ink3)">${z.klEinheit?z.klEinheit.toFixed(5):'-'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-weight:600;font-size:.87rem">${fmt(z.rezeptKosten)} €</td>
+    </tr>`;
+  }).join('');
+
+  // ── STEPS ──
+  const stepsHtml=(r.steps||[]).length
+    ? (r.steps||[]).map((s,i)=>`<div class="rkv-step"><div class="rkv-step-n">${i+1}</div><div class="rkv-step-t">${escHtml(s)}</div></div>`).join('')
+    : '<div style="font-size:.84rem;color:var(--ink3);font-style:italic">Keine Zubereitungsschritte vorhanden.</div>';
+
+  // ── WARN/OK BOX ──
+  let statusBox='';
+  if(c.vkBrutto>0){
+    if(c.weq>=stamm.weqCrit) statusBox=`<div class="rkv-warn">⚠ WEQ kritisch (${c.weq.toFixed(1)}%). Wareneinsatz übersteigt Zielwert stark. VK erhöhen oder Zutatenkosten prüfen.</div>`;
+    else if(c.weq>=stamm.weqWarn) statusBox=`<div class="rkv-warn">⚠ WEQ leicht über Zielwert (${stamm.weqWarn}%). Prüfe ob VK erhöht oder Zutatenmenge reduziert werden kann.</div>`;
+    else statusBox=`<div class="rkv-ok">✓ WEQ im Zielbereich (${c.weq.toFixed(1)}%). Kalkulation ist wirtschaftlich.</div>`;
+  }
+
+  // ── ACTIVE TAB: preserve current tab ──
+  const activeTab=el.dataset.tab||'uebersicht';
+
+  el.innerHTML=`
+  <!-- HERO -->
+  <div class="rkv-hero">
+    ${img?`<img src="${img}" alt="${escAttr(r.name)}"/>`:`<div class="rkv-hero-emoji">${r.emoji||'🍽'}</div>`}
+    <div class="rkv-hero-overlay">
+      <div class="rkv-hero-name">${escHtml(r.name)}</div>
+      <button class="rkv-hero-btn" onclick="editRecipe(${r.id})">✏️ Bearbeiten</button>
     </div>
   </div>
 
-  <!-- RESULT CARDS -->
-  <div class="kalk-results">
-    <div class="kalk-card ink">
-      <div class="kc-label">VK Brutto</div>
-      <div class="kc-val">${fmt(c.vkBrutto)} €</div>
-    </div>
-    <div class="kalk-card">
-      <div class="kc-label">VK Netto (${stamm.mwst}% MwSt.)</div>
-      <div class="kc-val">${fmt(c.vkNetto)} €</div>
-    </div>
-    <div class="kalk-card">
-      <div class="kc-label">Warenkosten / Port.</div>
-      <div class="kc-val">${fmt(c.warenkosten)} €</div>
-    </div>
-    <div class="kalk-card ${weqColor}">
-      <div class="kc-label">WEQ</div>
-      <div class="kc-val">${c.weq.toFixed(1)} %</div>
-    </div>
-    <div class="kalk-card ${dbColor}">
-      <div class="kc-label">DB / Portion</div>
-      <div class="kc-val">${fmt(c.db)} €</div>
-    </div>
-    <div class="kalk-card ${dbColor}">
-      <div class="kc-label">DB gesamt (${c.portionen} Port.)</div>
-      <div class="kc-val">${fmt(c.dbGesamt)} €</div>
-    </div>
+  <!-- TABS -->
+  <div class="rkv-tabs">
+    <div class="rkv-tab ${activeTab==='uebersicht'?'active':''}" onclick="rkvTab(this,'rkv-uebersicht-${id}')">Übersicht</div>
+    <div class="rkv-tab ${activeTab==='zutaten'?'active':''}" onclick="rkvTab(this,'rkv-zutaten-${id}')">Zutaten &amp; Kalkulation</div>
+    <div class="rkv-tab ${activeTab==='zubereitung'?'active':''}" onclick="rkvTab(this,'rkv-zubereitung-${id}')">Zubereitung</div>
   </div>
 
-  <!-- WEQ BAR -->
-  <div class="weq-bar-wrap">
-    <div style="font-size:.7rem;color:var(--ink3);margin-bottom:4px">WEQ-Anzeige · Ziel &lt; ${stamm.weqWarn}%</div>
-    <div class="weq-bar-track">
-      <div class="weq-bar-fill" style="width:${barW}%;background:${weqBarColor}">
-        <span>${c.weq.toFixed(1)}%</span>
-      </div>
-    </div>
-  </div>
+  <!-- TAB BODY -->
+  <div class="rkv-body">
 
-  <!-- PARAMETER BOX -->
-  <div class="kalk-section">
-    <div class="kalk-section-head"><h3>Kalkulations-Parameter</h3></div>
-    <div class="kalk-params">
-      <div class="kalk-param">
-        <label>VK Brutto (€)</label>
-        <div class="unit-wrap">
-          <input type="number" step="0.10" min="0" value="${k.vkBrutto}" onchange="kalkSetParam(${id},'vkBrutto',this.value)" class="num-inp"/>
-          <span class="unit-badge">€</span>
+    <!-- ══ ÜBERSICHT ══ -->
+    <div class="rkv-pane ${activeTab==='uebersicht'?'active':''}" id="rkv-uebersicht-${id}">
+      <div class="rkv-overview">
+        <!-- Left -->
+        <div>
+          <div class="rkv-meta">
+            ${r.category?`<span class="rkv-meta-tag cat">${escHtml(r.category)}</span>`:''}
+            ${r.season?`<span class="rkv-meta-tag">📅 ${escHtml(r.season)}</span>`:''}
+            ${r.time?`<span class="rkv-meta-tag">${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''}
+            ${(r.tags||[]).map(t=>`<span class="rkv-meta-tag">${escHtml(t)}</span>`).join('')}
+          </div>
+
+          <div class="rkv-kpis">
+            <div class="rkv-kpi dark">
+              <div class="rkv-kpi-l">VK Brutto</div>
+              <div class="rkv-kpi-v">${c.vkBrutto>0?fmt(c.vkBrutto)+' €':'–'}</div>
+            </div>
+            <div class="rkv-kpi">
+              <div class="rkv-kpi-l">Wareneinsatz</div>
+              <div class="rkv-kpi-v">${fmt(c.warenkosten)} €</div>
+            </div>
+            <div class="rkv-kpi">
+              <div class="rkv-kpi-l">WEQ</div>
+              <div class="rkv-kpi-v ${weqCls}">${c.vkBrutto>0?c.weq.toFixed(1)+' %':'–'}</div>
+            </div>
+          </div>
+          <div class="rkv-kpis">
+            <div class="rkv-kpi">
+              <div class="rkv-kpi-l">VK Netto (${stamm.mwst}% MwSt.)</div>
+              <div class="rkv-kpi-v">${c.vkBrutto>0?fmt(c.vkNetto)+' €':'–'}</div>
+            </div>
+            <div class="rkv-kpi">
+              <div class="rkv-kpi-l">DB / Portion</div>
+              <div class="rkv-kpi-v ${dbCls}">${c.vkBrutto>0?fmt(c.db)+' €':'–'}</div>
+            </div>
+            <div class="rkv-kpi">
+              <div class="rkv-kpi-l">DB gesamt (${k.portionen} Port.)</div>
+              <div class="rkv-kpi-v ${dbCls}">${c.vkBrutto>0?fmt(c.dbGesamt)+' €':'–'}</div>
+            </div>
+          </div>
+
+          ${c.vkBrutto>0?`<div class="rkv-weqwrap">
+            <div class="rkv-weq-lbl"><span>WEQ-Anzeige · Ziel &lt; ${stamm.weqWarn}%</span><span style="font-weight:600;color:${weqColor}">${c.weq.toFixed(1)} %</span></div>
+            <div class="rkv-weq-track"><div class="rkv-weq-fill" style="width:${barW}%;background:${weqColor}"></div></div>
+          </div>`:''}
+
+          ${statusBox}
+        </div>
+
+        <!-- Right: Params + Ergebnis -->
+        <div>
+          <div class="rkv-sec-title">Kalkulations-Parameter</div>
+          <div class="kalk-params">
+            <div class="kalk-param">
+              <label>VK Brutto (€)</label>
+              <div class="unit-wrap"><input type="number" step="0.10" min="0" value="${k.vkBrutto}" onchange="kalkSetParam(${id},'vkBrutto',this.value)" class="num-inp"/><span class="unit-badge">€</span></div>
+            </div>
+            <div class="kalk-param">
+              <label>Geplante Portionen</label>
+              <div class="unit-wrap"><input type="number" step="1" min="1" value="${k.portionen}" onchange="kalkSetParam(${id},'portionen',this.value)" class="num-inp"/><span class="unit-badge">Port.</span></div>
+            </div>
+            <div class="kalk-param">
+              <label>Schwund (%)</label>
+              <div class="unit-wrap"><input type="number" step="0.5" min="0" max="100" value="${k.schwund!=null?k.schwund:stamm.schwund}" onchange="kalkSetParam(${id},'schwund',this.value)" class="num-inp"/><span class="unit-badge">%</span></div>
+            </div>
+            <div class="kalk-param">
+              <label>MwSt. (Stammdaten)</label>
+              <div class="unit-wrap"><input type="number" value="${stamm.mwst}" disabled style="background:var(--surface2);color:var(--ink3);cursor:not-allowed"/><span class="unit-badge">%</span></div>
+            </div>
+          </div>
+          <div class="rkv-divider"></div>
+          <div class="rkv-sec-title">Ergebnis</div>
+          <table class="ki-table" style="width:100%">
+            <tr><td>Warenkosten / Portion</td><td class="num">${fmt(c.warenkosten)} €</td></tr>
+            <tr><td>VK Brutto</td><td class="num">${fmt(c.vkBrutto)} €</td></tr>
+            <tr><td>MwSt. (${stamm.mwst}%)</td><td class="num">${fmt(c.vkBrutto-c.vkNetto)} €</td></tr>
+            <tr><td>VK Netto</td><td class="num">${fmt(c.vkNetto)} €</td></tr>
+            <tr style="font-weight:700"><td>DB / Portion</td><td class="num" style="color:${c.db<0?'#c0392b':'var(--green)'}">${fmt(c.db)} €</td></tr>
+            <tr><td>Geplante Portionen</td><td class="num">${k.portionen}</td></tr>
+            <tr style="font-weight:700;background:var(--surface2)"><td>DB gesamt</td><td class="num" style="color:${c.dbGesamt<0?'#c0392b':'var(--green)'}">${fmt(c.dbGesamt)} €</td></tr>
+            <tr><td>WEQ</td><td class="num"><strong style="color:${weqColor}">${c.weq.toFixed(2)} %</strong></td></tr>
+          </table>
         </div>
       </div>
-      <div class="kalk-param">
-        <label>Geplante Portionen</label>
-        <div class="unit-wrap">
-          <input type="number" step="1" min="1" value="${k.portionen}" onchange="kalkSetParam(${id},'portionen',this.value)" class="num-inp"/>
-          <span class="unit-badge">Port.</span>
-        </div>
-      </div>
-      <div class="kalk-param">
-        <label>Schwund-Zuschlag (%)</label>
-        <div class="unit-wrap">
-          <input type="number" step="0.5" min="0" max="100" value="${k.schwund!=null?k.schwund:stamm.schwund}" onchange="kalkSetParam(${id},'schwund',this.value)" class="num-inp"/>
-          <span class="unit-badge">%</span>
-        </div>
-      </div>
-      <div class="kalk-param">
-        <label>MwSt. (Stammdaten)</label>
-        <div class="unit-wrap">
-          <input type="number" value="${stamm.mwst}" disabled style="background:var(--surface2);color:var(--ink3);cursor:not-allowed"/>
-          <span class="unit-badge">%</span>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- ZUTATEN TABLE -->
-  <div class="kalk-section">
-    <div class="kalk-section-head">
-      <h3>Zutaten &amp; Einkaufspreise</h3>
-      <div class="ksh-actions">
-        <span style="font-size:.72rem;color:rgba(255,255,255,.45);margin-right:4px">VPE-Preise nur über Artikelstamm änderbar</span>
-        <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:rgba(255,255,255,.1)" onclick="kalkRebuildFromRecipe(${id})" title="Zutaten komplett aus Rezept neu aufbauen und Artikelstamm verknüpfen">🔄 Zutaten neu einlesen</button>
-        <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:rgba(255,255,255,.1)" onclick="kalkAddZutat(${id})">+ Zutat</button>
-        <button class="btn-s p" onclick="kalkSyncAll(${id})" title="Alle verknüpften Preise aus Artikelstamm aktualisieren">🔗 Preise sync</button>
-        <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:var(--accent)" onclick="showView('mutterliste',document.querySelectorAll('.nav-tab')[4])" title="Zum Artikelstamm wechseln">📦 Artikelstamm →</button>
+    <!-- ══ ZUTATEN & KALKULATION ══ -->
+    <div class="rkv-pane ${activeTab==='zutaten'?'active':''}" id="rkv-zutaten-${id}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-family:'Playfair Display',serif;font-size:.95rem">Zutaten &amp; Einkaufspreise</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span style="font-size:.72rem;color:var(--ink3);align-self:center">Mengen nur im Rezept änderbar</span>
+          <button class="btn-s" onclick="kalkRebuildFromRecipe(${id})" title="Zutaten neu aus Rezept einlesen">🔄 Neu einlesen</button>
+          <button class="btn-s p" onclick="kalkSyncAll(${id})">🔗 Preise sync</button>
+          <button class="btn-s" onclick="showView('mutterliste',document.querySelectorAll('.nav-tab')[4])">📦 Artikelstamm</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="ki-table" style="min-width:600px;width:100%">
+        <thead><tr>
+          <th>Zutat</th>
+          <th class="num">Menge</th>
+          <th>Einheit</th>
+          <th class="num">VPE Preis (€)</th>
+          <th class="num">VPE Größe</th>
+          <th class="num">€/Einheit</th>
+          <th class="num">Kosten</th>
+        </tr></thead>
+        <tbody>${zutRows}</tbody>
+        <tfoot>
+          <tr class="ki-total"><td colspan="6">Gesamt Rezeptkosten (${c.zutaten.length} Zutaten)</td><td class="num">${fmt(c.rezeptKostenGesamt)} €</td></tr>
+          <tr class="ki-total"><td colspan="6">+ Schwund ${k.schwund!=null?k.schwund:stamm.schwund}%</td><td class="num">${fmt(c.warenkosten)} €</td></tr>
+        </tfoot>
+      </table>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:.75rem;color:var(--ink3);font-style:italic">Zutaten können nur im Rezept bearbeitet werden.</span>
+        <button class="btn-s" onclick="editRecipe(${id})" style="font-size:.76rem">✏️ Rezept bearbeiten</button>
       </div>
     </div>
-    <div style="overflow-x:auto">
-    <table class="ki-table">
-      <thead>
-        <tr>
-          <th style="min-width:180px">Zutat</th>
-          <th class="num" style="min-width:65px">Menge</th>
-          <th style="min-width:70px">Einheit</th>
-          <th class="num" style="min-width:100px">VPE Preis (€)</th>
-          <th class="num" style="min-width:90px">VPE Größe</th>
-          <th class="num" style="min-width:80px">€ / Einheit</th>
-          <th class="num" style="min-width:90px">Kosten (€)</th>
-          <th style="width:36px"></th>
-        </tr>
-      </thead>
-      <tbody id="kalkZutatenBody">
-      ${c.zutaten.map((z,i)=>{
-        const art=z.mlId?mlById(z.mlId):null;
-        const linked=!!art;
-        const linkTag=linked
-          ?`<span onclick="openArticleInStamm(${art.id})" title="Im Artikelstamm öffnen: ${escAttr(art.name)}&#10;${art.preis!=null?art.preis.toFixed(2)+' €':'–'} / ${art.vpe||'?'} ${art.einheit||''}" style="margin-left:6px;cursor:pointer;font-size:.7rem;background:var(--green-l);color:var(--green);border:1px solid #a8d8b3;border-radius:10px;padding:1px 6px;white-space:nowrap">🔗 ${escHtml(art.lieferant||art.name)}</span>`
-          :'';
-        const vpeStyle=linked?'border-color:var(--green);background:var(--green-l)':'';
-        return `<tr>
-          <td><input value="${escHtml(z.name)}" placeholder="Zutat …" onchange="kalkZutatSet(${id},${i},'name',this.value)" style="min-width:120px;width:100%"/>${linkTag?`<div style="margin-top:3px">${linkTag}</div>`:''}</td>
-          <td><input type="number" step="0.1" min="0" class="num-inp" value="${z.rezeptGroesse||''}" placeholder="0" onchange="kalkZutatSet(${id},${i},'rezeptGroesse',this.value)"/></td>
-          <td>
-            <select onchange="kalkZutatSet(${id},${i},'einheit',this.value)">
-              ${['g','kg','ml','l','EL','TL','St','Schale','Portion','Bund'].map(u=>`<option ${z.einheit===u?'selected':''}>${u}</option>`).join('')}
-            </select>
-          </td>
-          <td><input type="number" step="0.01" min="0" class="num-inp" value="${z.vpePreis||''}" placeholder="0.00" onchange="kalkZutatSet(${id},${i},'vpePreis',this.value)" style="${vpeStyle}"/></td>
-          <td><input type="number" step="1" min="0" class="num-inp" value="${z.vpeGroesse||''}" placeholder="1000" onchange="kalkZutatSet(${id},${i},'vpeGroesse',this.value)" style="${vpeStyle}"/></td>
-          <td class="ki-calc num">${z.klEinheit?z.klEinheit.toFixed(5):'-'}</td>
-          <td class="ki-calc num">${fmt(z.rezeptKosten)}</td>
-          <td><button onclick="kalkDelZutat(${id},${i})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:.9rem">✕</button></td>
-        </tr>`;
-      }).join('')}
-      </tbody>
-      <tfoot>
-        <tr class="ki-total">
-          <td colspan="5">Gesamt Rezeptkosten (${c.zutaten.length} Zutaten)</td>
-          <td></td>
-          <td class="num">${fmt(c.rezeptKostenGesamt)}</td>
-          <td></td>
-        </tr>
-        <tr class="ki-total">
-          <td colspan="5">+ Schwund ${k.schwund!=null?k.schwund:stamm.schwund}%</td>
-          <td></td>
-          <td class="num">${fmt(c.warenkosten)}</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-    </div>
-    <div class="ki-add-row">
-      <button class="btn-s" onclick="kalkAddZutat(${id})">+ Zutat hinzufügen</button>
-    </div>
-  </div>
 
-  <!-- SUMMARY TABLE -->
-  <div class="kalk-section">
-    <div class="kalk-section-head"><h3>Übersicht Kalkulation</h3></div>
-    <table class="ki-table" style="max-width:480px">
-      <tr><td>Warenkosten pro Portion</td><td class="num">${fmt(c.warenkosten)} €</td></tr>
-      <tr><td>VK Brutto</td><td class="num">${fmt(c.vkBrutto)} €</td></tr>
-      <tr><td>MwSt. (${stamm.mwst}%)</td><td class="num">${fmt(c.vkBrutto-c.vkNetto)} €</td></tr>
-      <tr><td>VK Netto</td><td class="num">${fmt(c.vkNetto)} €</td></tr>
-      <tr style="font-weight:600"><td>Deckungsbeitrag / Portion</td><td class="num" style="color:${c.db<0?'#c0392b':'var(--green)'}">${fmt(c.db)} €</td></tr>
-      <tr><td>Geplante Portionen</td><td class="num">${c.portionen}</td></tr>
-      <tr style="font-weight:600;background:var(--surface2)"><td>DB gesamt (geplant)</td><td class="num" style="color:${c.dbGesamt<0?'#c0392b':'var(--green)'}">${fmt(c.dbGesamt)} €</td></tr>
-      <tr><td>WEQ</td><td class="num"><strong style="color:${weqBarColor}">${c.weq.toFixed(2)} %</strong></td></tr>
-    </table>
-  </div>
-  <div style="height:40px"></div>`;
+    <!-- ══ ZUBEREITUNG ══ -->
+    <div class="rkv-pane ${activeTab==='zubereitung'?'active':''}" id="rkv-zubereitung-${id}">
+      <div class="rkv-steps">${stepsHtml}</div>
+      ${r.notes?`<div style="margin-top:20px"><div class="rkv-sec-title">Notizen</div><div class="notes-box">${escHtml(r.notes)}</div></div>`:''}
+      ${(r.allergens||[]).length?`<div style="margin-top:20px"><div class="rkv-sec-title">Allergene</div><div class="allerg-list">${r.allergens.map(a=>`<span class="allerg">${a}</span>`).join('')}</div></div>`:''}
+    </div>
+
+  </div>`;<!-- /rkv-body -->
+  el.dataset.tab=activeTab;
+}
+
+function rkvTab(btn,paneId){
+  // switch tab within kalk main
+  const el=document.getElementById('kalkMain');
+  el.querySelectorAll('.rkv-tab').forEach(t=>t.classList.remove('active'));
+  el.querySelectorAll('.rkv-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  const pane=el.querySelector('#'+paneId);
+  if(pane) pane.classList.add('active');
+  // persist active tab name
+  const tabName=paneId.replace(/^rkv-/,'').replace(/-\d+$/,'');
+  el.dataset.tab=tabName;
 }
 
 /* helpers */
