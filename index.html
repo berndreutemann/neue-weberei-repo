@@ -378,13 +378,13 @@
     #fCatNew{display:none;margin-top:6px}
 
     /* KALK SIDEBAR */
-    .kalk-sidebar{width:200px;min-width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+    .kalk-sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
     .kalk-sidebar-cat{font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--ink3);padding:12px 14px 4px}
-    .kalk-recipe-chip{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 14px;font-size:.82rem;cursor:pointer;border:none;background:none;color:var(--ink2);transition:background .13s,color .13s;text-align:left;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:0}
+    .kalk-recipe-chip{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 12px;font-size:.81rem;cursor:pointer;border:none;background:none;color:var(--ink2);transition:background .13s,color .13s;text-align:left;width:100%;border-radius:0;overflow:hidden}
     .kalk-recipe-chip:hover{background:var(--bg);color:var(--ink)}
     .kalk-recipe-chip.active{background:var(--accent-l);color:var(--accent);font-weight:600}
-    .kalk-recipe-chip .chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-    .kalk-weq-badge{font-size:.68rem;font-weight:600;padding:1px 6px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+    .kalk-recipe-chip .chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:130px}
+    .kalk-weq-badge{font-size:.67rem;font-weight:600;padding:1px 5px;border-radius:20px;white-space:nowrap;flex-shrink:0;min-width:32px;text-align:center}
     .kalk-weq-badge.green{background:var(--green-l);color:var(--green)}
     .kalk-weq-badge.amber{background:var(--amber-l);color:var(--amber)}
     .kalk-weq-badge.red{background:#fff5f5;color:#c0392b}
@@ -831,6 +831,22 @@
         <input class="cat-emoji-pick" id="catNewEmoji" type="text" maxlength="2" placeholder="🍽" title="Emoji wählen"/>
         <input id="catNewName" placeholder="Neue Kategorie …" onkeydown="if(event.key==='Enter')addCatItem()"/>
         <button class="btn-s p" onclick="addCatItem()">+ Hinzufügen</button>
+      </div>
+    </div>
+
+    <!-- DATEN EXPORT / IMPORT -->
+    <div class="stamm-card" style="margin-top:20px">
+      <div class="stamm-title">Daten Export / Import</div>
+      <div class="stamm-note" style="margin-bottom:16px">
+        Alle Daten als JSON-Datei sichern oder wiederherstellen. Enthält: Rezepte, Artikelstamm, Kalkulationen, Kategorien und Stammdaten-Parameter.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn-s p" onclick="exportAllData()" style="display:flex;align-items:center;gap:6px">⬇ Alle Daten exportieren</button>
+        <button class="btn-s" onclick="document.getElementById('importAllInput').click()" style="display:flex;align-items:center;gap:6px">⬆ Daten importieren / wiederherstellen</button>
+        <input type="file" id="importAllInput" accept=".json" style="display:none" onchange="importAllData(event)"/>
+      </div>
+      <div class="stamm-note" style="margin-top:12px;color:var(--amber)">
+        ⚠ Beim Import werden alle lokalen Kalkulationsdaten überschrieben. Supabase-Daten (Rezepte, Artikel) bleiben erhalten und werden nicht verändert.
       </div>
     </div>
   </div>
@@ -1694,7 +1710,7 @@ function renderRecipeGrid(){
         <div class="rcard-name">${r.name}</div>
         <div class="rcard-tags">${(r.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}${r.season?`<span class="tag">${r.season}</span>`:''}</div>
         <div class="rcard-meta">${r.time?`<span>${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''} ${r.portions?`<span>👥 ${r.portions} Port.</span>`:''}</div>
-        ${(r.nw&&r.nw.kcal)?`<div class="nw-mini"><span class="nw-mini-pill">🔥 <strong>${r.nw.kcal}</strong> kcal</span>${r.nw.protein?`<span class="nw-mini-pill">💪 <strong>${r.nw.protein}g</strong> Eiw.</span>`:''}</div>`:''}
+
       </div>
       ${(()=>{
         const k=getKalk(r.id);const c=computeKalk(k);
@@ -1785,7 +1801,7 @@ function renderDetail(r,portions){
     <div class="d-sec">Zubereitung</div>
     <ol class="steps-ol">${(r.steps||[]).map(s=>`<li>${s}</li>`).join('')}</ol>
     ${r.notes?`<div class="d-sec">Notizen</div><div class="notes-box">${r.notes}</div>`:''}
-    ${renderNutrition(r)}
+
     <div style="height:48px"></div>`;
 }
 function triggerDetailImg(id){document.getElementById('di-'+id)?.click();}
@@ -2365,27 +2381,8 @@ function getKalk(id){
   let k=kalkLoad(id);
   const r=recipes.find(x=>x.id===id);
 
-  if(k){
-    // Sync each kalk zutat: try to find matching article by name in both recipe ingredients and mutterliste
-    let changed=false;
-    (k.zutaten||[]).forEach((z,zi)=>{
-      // Find matching recipe ingredient by name
-      const recipeIngr=(r?.ingredients||[]).find(i=>i.name&&z.name&&i.name.trim().toLowerCase()===z.name.trim().toLowerCase());
-      // Resolve article: prefer recipe's mlId, fallback to name lookup
-      const art=recipeIngr?resolveArticleForIngr(recipeIngr):mlByName(z.name);
-      if(art){
-        // Update mlId to current Supabase ID
-        if(z.mlId!==art.id){z.mlId=art.id;changed=true;}
-        // Fill price if still missing/zero
-        if((!z.vpePreis||z.vpePreis===0)&&art.preis!=null){z.vpePreis=art.preis;changed=true;}
-        if((!z.vpeGroesse||z.vpeGroesse<=1)&&art.vpe){z.vpeGroesse=art.vpe;changed=true;}
-        if(!z.einheit&&art.einheit){z.einheit=art.einheit;changed=true;}
-      }
-    });
-    if(changed) kalkSave(id,k);
-  }
-
   if(!k){
+    // Kalk noch nicht vorhanden: komplett aus Rezept aufbauen
     k={
       vkBrutto: r?.cost ? +(r.cost*(1+stamm.mwst/100)).toFixed(2) : 0,
       portionen: r?.portions||4,
@@ -2402,7 +2399,52 @@ function getKalk(id){
       })
     };
     kalkSave(id,k);
+    return k;
   }
+
+  // Kalk existiert: mit Rezept-Änderungen abgleichen
+  let changed=false;
+  const recipeIngrs = r?.ingredients||[];
+
+  // 1. Für jede Kalk-Zutat: Artikel-Verknüpfung + Menge aus Rezept aktualisieren
+  k.zutaten.forEach(z=>{
+    const recipeIngr=recipeIngrs.find(i=>i.name&&z.name&&i.name.trim().toLowerCase()===z.name.trim().toLowerCase());
+    const art=recipeIngr?resolveArticleForIngr(recipeIngr):mlByName(z.name);
+    if(art){
+      if(z.mlId!==art.id){z.mlId=art.id;changed=true;}
+      if((!z.vpePreis||z.vpePreis===0)&&art.preis!=null){z.vpePreis=art.preis;changed=true;}
+      if((!z.vpeGroesse||z.vpeGroesse<=1)&&art.vpe){z.vpeGroesse=art.vpe;changed=true;}
+      if(!z.einheit&&art.einheit){z.einheit=art.einheit;changed=true;}
+    }
+    // Menge aus Rezept übernehmen (falls Rezept die Quelle ist)
+    if(recipeIngr){
+      const newAmount=parseFloat(recipeIngr.amount)||0;
+      if(z.rezeptGroesse!==newAmount){z.rezeptGroesse=newAmount;changed=true;}
+      // Einheit aus Rezept übernehmen wenn noch nicht manuell gesetzt
+      if(!z.mlId&&recipeIngr.unit&&z.einheit!==recipeIngr.unit){z.einheit=recipeIngr.unit;changed=true;}
+    }
+  });
+
+  // 2. Neue Zutaten aus Rezept hinzufügen (die noch nicht in Kalk sind)
+  recipeIngrs.forEach(i=>{
+    const exists=k.zutaten.find(z=>z.name&&i.name&&z.name.trim().toLowerCase()===i.name.trim().toLowerCase());
+    if(!exists){
+      const art=resolveArticleForIngr(i);
+      k.zutaten.push({
+        name:i.name, mlId:art?.id||null,
+        vpePreis:art?.preis??0,
+        vpeGroesse:art?.vpe??1000,
+        einheit:art?.einheit||i.unit||'g',
+        rezeptGroesse:parseFloat(i.amount)||0
+      });
+      changed=true;
+    }
+  });
+
+  // 3. Portionen aus Rezept aktualisieren wenn geändert
+  if(r?.portions&&k.portionen!==r.portions){k.portionen=r.portions;changed=true;}
+
+  if(changed) kalkSave(id,k);
   return k;
 }
 
@@ -2590,7 +2632,8 @@ function renderKalk(id){
         <span style="font-size:.72rem;color:rgba(255,255,255,.45);margin-right:4px">VPE-Preise nur über Artikelstamm änderbar</span>
         <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:rgba(255,255,255,.1)" onclick="kalkRebuildFromRecipe(${id})" title="Zutaten komplett aus Rezept neu aufbauen und Artikelstamm verknüpfen">🔄 Zutaten neu einlesen</button>
         <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:rgba(255,255,255,.1)" onclick="kalkAddZutat(${id})">+ Zutat</button>
-        <button class="btn-s p" onclick="kalkSyncAll(${id})" title="Alle verknüpften Preise aus Artikelstamm aktualisieren">📦 Artikelstamm</button>
+        <button class="btn-s p" onclick="kalkSyncAll(${id})" title="Alle verknüpften Preise aus Artikelstamm aktualisieren">🔗 Preise sync</button>
+        <button class="btn-s" style="border-color:rgba(255,255,255,.3);color:#f4f1eb;background:var(--accent)" onclick="showView('mutterliste',document.querySelectorAll('.nav-tab')[4])" title="Zum Artikelstamm wechseln">📦 Artikelstamm →</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -2616,7 +2659,7 @@ function renderKalk(id){
           :'';
         const vpeStyle=linked?'border-color:var(--green);background:var(--green-l)':'';
         return `<tr>
-          <td style="white-space:nowrap"><input value="${escHtml(z.name)}" placeholder="Zutat …" oninput="kalkZutatSet(${id},${i},'name',this.value)" style="min-width:120px"/>${linkTag}</td>
+          <td><input value="${escHtml(z.name)}" placeholder="Zutat …" oninput="kalkZutatSet(${id},${i},'name',this.value)" style="min-width:120px;width:100%"/>${linkTag?`<div style="margin-top:3px">${linkTag}</div>`:''}</td>
           <td><input type="number" step="0.1" min="0" class="num-inp" value="${z.rezeptGroesse||''}" placeholder="0" oninput="kalkZutatSet(${id},${i},'rezeptGroesse',this.value)"/></td>
           <td>
             <select onchange="kalkZutatSet(${id},${i},'einheit',this.value)">
@@ -3434,6 +3477,95 @@ async function executePdfImport(includeUpdates){
   renderMutterliste();
   closePdfImportModal();
   showToast(`✓ METRO Import: ${added} neue Artikel · ${updated} Preise aktualisiert`, 4000);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   DATEN EXPORT / IMPORT (alle lokalen Daten)
+═══════════════════════════════════════════════════════ */
+function exportAllData(){
+  // Collect all kalk entries from localStorage
+  const kalks={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('nw_kalk_')){
+      try{kalks[k]=JSON.parse(localStorage.getItem(k));}catch{}
+    }
+  }
+
+  const payload={
+    _version:2,
+    _exportedAt:new Date().toISOString(),
+    _info:'Neue Weberei · Küche – Vollbackup',
+    stamm: safeLoad('nw_stamm')||stamm,
+    cats: safeLoad('nw_cats')||cats,
+    kalks,
+    // Supabase-Daten als Snapshot (read-only bei Import)
+    _recipesSnapshot: recipes,
+    _mutterlisteSnapshot: mutterliste,
+  };
+
+  const json=JSON.stringify(payload,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const date=new Date().toISOString().slice(0,10);
+  a.href=url; a.download=`neue-weberei-backup-${date}.json`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`✓ Export: ${recipes.length} Rezepte · ${mutterliste.length} Artikel · ${Object.keys(kalks).length} Kalkulationen`);
+}
+
+function importAllData(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data||typeof data!=='object') throw new Error('Ungültiges Format');
+
+      let msg='Folgende Daten werden importiert:
+';
+      if(data.kalks) msg+=`• ${Object.keys(data.kalks).length} Kalkulationen
+`;
+      if(data.cats)  msg+=`• ${data.cats.length} Kategorien
+`;
+      if(data.stamm) msg+='• Stammdaten-Parameter
+';
+      msg+='
+Fortfahren?';
+
+      if(!confirm(msg)){e.target.value='';return;}
+
+      // Import kalks into localStorage
+      if(data.kalks){
+        Object.entries(data.kalks).forEach(([k,v])=>{
+          localStorage.setItem(k,JSON.stringify(v));
+        });
+      }
+      // Import categories
+      if(data.cats&&Array.isArray(data.cats)){
+        cats.length=0; data.cats.forEach(c=>cats.push(c));
+        catPersist();
+        renderCatManager();
+        populateFCat();
+      }
+      // Import stamm parameters
+      if(data.stamm){
+        Object.assign(stamm,data.stamm);
+        localStorage.setItem('nw_stamm',JSON.stringify(stamm));
+        loadStammUI();
+      }
+
+      e.target.value='';
+      showToast(`✓ Import abgeschlossen – ${Object.keys(data.kalks||{}).length} Kalkulationen wiederhergestellt`, 4000);
+    }catch(err){
+      e.target.value='';
+      alert('Fehler beim Import:\n'+err.message);
+    }
+  };
+  reader.readAsText(file,'utf-8');
 }
 
 /* ─── SAMPLE DATA ─── */
