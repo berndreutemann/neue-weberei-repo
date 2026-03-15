@@ -119,10 +119,10 @@
     .detail-inner{padding:24px;max-width:720px;margin:0 auto}
 
     /* DETAIL HERO IMAGE */
-    .d-hero{height:300px;background:var(--surface2);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:5rem;margin-bottom:22px;position:relative;overflow:hidden;cursor:pointer}
+    .d-hero{height:300px;background:var(--surface2);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:5rem;margin-bottom:22px;position:relative;overflow:hidden}
     .d-hero img{width:100%;height:100%;object-fit:cover;display:block}
     .d-hero-overlay{position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;opacity:0;transition:all .2s}
-    .d-hero:hover .d-hero-overlay{background:rgba(0,0,0,.42);opacity:1}
+    /* d-hero overlay disabled — photo only editable in recipe modal */
     .d-hero-overlay .ov-btn{color:white;font-size:.78rem;font-weight:600;background:rgba(0,0,0,.45);padding:7px 18px;border-radius:20px;border:1px solid rgba(255,255,255,.25);cursor:pointer;pointer-events:auto}
     .d-hero-overlay .ov-del{background:rgba(160,20,20,.55);border-color:rgba(255,100,100,.35)}
 
@@ -200,6 +200,10 @@
     .ml-picker-dd .ml-opt .mo-name{font-weight:500;display:block}
     .ml-picker-dd .ml-opt .mo-lief{font-size:.72rem;color:var(--ink3);display:block;margin-top:1px}
     .ml-picker-dd .ml-opt .mo-price{font-size:.78rem;color:var(--ink2);white-space:nowrap;text-align:right}
+    .ml-picker-dd .ml-opt .mo-edit{opacity:0;font-size:.7rem;color:var(--accent);background:var(--accent-l);border:1px solid #e8c4a8;border-radius:5px;padding:2px 7px;cursor:pointer;white-space:nowrap;transition:opacity .15s;flex-shrink:0}
+    .ml-picker-dd .ml-opt:hover .mo-edit{opacity:1}
+    .ml-picker-dd .ml-opt .mo-edit{opacity:0;font-size:.7rem;color:var(--accent);background:var(--accent-l);border:1px solid #e8c4a8;border-radius:5px;padding:2px 7px;cursor:pointer;white-space:nowrap;transition:opacity .15s;flex-shrink:0}
+    .ml-picker-dd .ml-opt:hover .mo-edit{opacity:1}
     .ml-picker-empty{padding:20px;text-align:center;color:var(--ink3);font-size:.83rem}
     .ml-picker-remove{padding:9px 14px;font-size:.8rem;color:var(--ink3);cursor:pointer;border-top:1px solid var(--border);text-align:center;transition:background .12s}
     .ml-picker-remove:hover{background:var(--bg);color:var(--accent)}
@@ -824,6 +828,7 @@
     </div>
     <div class="modal-f">
       <button class="btn-s" onclick="maybeCloseRecipeModal()">Abbrechen</button>
+      <button class="btn-s" id="btnGoKalk" style="display:none;margin-right:auto" onclick="goToKalkFromModal()" title="Zur Kalkulation wechseln">🧮 Kalkulation</button>
       <button class="btn-s p" onclick="saveRecipe()">Speichern</button>
     </div>
   </div>
@@ -1887,8 +1892,7 @@ function renderDetail(r,portions){
     <div class="d-hero" onclick="triggerDetailImg(${r.id})">
       ${img?`<img src="${img}" alt="${escAttr(r.name)}"/>`:`<span>${r.emoji||'🍽'}</span>`}
       <div class="d-hero-overlay">
-        <span class="ov-btn">📷 ${img?'Foto ändern':'Foto hinzufügen'}</span>
-        ${img?`<span class="ov-btn ov-del" onclick="delDetailImg(${r.id},event)">🗑 Foto löschen</span>`:''}
+        <!-- overlay removed — edit photo via Bearbeiten -->
       </div>
       <input type="file" id="di-${r.id}" accept="image/*" style="display:none" onchange="onDetailImg(${r.id},event)"/>
     </div>
@@ -2100,6 +2104,36 @@ function recipeModalOverlayClick(e){
   maybeCloseRecipeModal();
 }
 
+function goToKalkFromModal(){
+  if(!editingId) return;
+  const id=editingId;
+  // Save first if there are unsaved changes, then navigate
+  saveRecipe().then(()=>{
+    closeRecipeModal();
+    showView('kalk', document.querySelectorAll('.nav-tab')[2]);
+    setTimeout(()=>openKalk(id), 100);
+  }).catch(()=>{
+    // If save failed, still navigate
+    closeRecipeModal();
+    showView('kalk', document.querySelectorAll('.nav-tab')[2]);
+    setTimeout(()=>openKalk(id), 100);
+  });
+}
+
+function goToKalkFromModal(){
+  if(!editingId) return;
+  const id=editingId;
+  // Save then navigate to Kalkulation
+  saveRecipe().then(()=>{
+    showView('kalk', document.querySelectorAll('.nav-tab')[2]);
+    setTimeout(()=>openKalk(id), 120);
+  }).catch(()=>{
+    closeRecipeModal();
+    showView('kalk', document.querySelectorAll('.nav-tab')[2]);
+    setTimeout(()=>openKalk(id), 120);
+  });
+}
+
 function maybeCloseRecipeModal(){
   if(!editingId){
     const d=collectModalData();
@@ -2116,6 +2150,7 @@ function maybeCloseRecipeModal(){
 function openAddRecipe(){
   editingId=null;_pendingImg=null;_imgCleared=false;
   document.getElementById('recipeModalTitle').textContent='Neues Rezept';
+  document.getElementById('btnGoKalk').style.display='none';
   ['fName','fTags','fAllergens','fSteps','fNotes',
    'nwKcal','nwProtein','nwCarbs','nwSugar','nwFat','nwSatFat','nwFiber','nwSalt'
   ].forEach(id=>document.getElementById(id).value='');
@@ -2133,6 +2168,7 @@ function editRecipe(id){
   const r=recipes.find(x=>x.id===id);if(!r)return;
   editingId=id;_pendingImg=imgLoad(id)||null;_imgCleared=false;
   document.getElementById('recipeModalTitle').textContent='Rezept bearbeiten';
+  document.getElementById('btnGoKalk').style.display='inline-flex';
   document.getElementById('fName').value=r.name;
   populateFCat(r.category);document.getElementById('fCatNewWrap').style.display='none';
   document.getElementById('fPort').value=r.portions||4;
@@ -2325,11 +2361,12 @@ function filterMlPicker(){
   }
   list.innerHTML=items.map(a=>`
     <div class="ml-opt" onclick="selectMlArticle(${a.id})">
-      <div>
+      <div style="flex:1;min-width:0">
         <span class="mo-name">${escHtml(a.name)}</span>
         <span class="mo-lief">${a.artNr?`#${a.artNr} · `:''}${escHtml(a.lieferant||'')}</span>
       </div>
       <div class="mo-price">${a.preis!=null?a.preis.toFixed(2)+' €'+(a.vpe?' / '+a.vpe+' '+a.einheit:''):'–'}</div>
+      <button class="mo-edit" onclick="mlPickerEditArticle(${a.id},event)" title="Artikel bearbeiten">✏️ bearb.</button>
     </div>`).join('');
 }
 
@@ -2353,6 +2390,34 @@ function selectMlArticle(mlId){
     const row=document.getElementById('ir-'+(_focusIdx??0));
     if(row)row.querySelector('input[type=number]')?.focus();
   },50);
+}
+
+function mlPickerEditArticle(artId, e){
+  e.stopPropagation();
+  // Remember row context so we can re-open picker after edit
+  const savedRowIdx=_mlPickerRowIdx;
+  const savedQ=(document.getElementById('mlPickerQ')?.value||'').trim();
+  document.querySelectorAll('.ml-picker-overlay').forEach(el=>el.remove());
+  _mlPickerRowIdx=null;
+  // Open article edit modal
+  openMlModal(artId);
+  // After save, re-open picker for the same row
+  _mlPickerReturnRow=savedRowIdx;
+  _mlPickerReturnQ=savedQ;
+}
+
+let _mlPickerReturnRow=null;
+let _mlPickerReturnQ='';
+
+function mlPickerEditArticle(artId, e){
+  e.stopPropagation();
+  const savedRowIdx=_mlPickerRowIdx;
+  const savedQ=(document.getElementById('mlPickerQ')?.value||'').trim();
+  document.querySelectorAll('.ml-picker-overlay').forEach(el=>el.remove());
+  _mlPickerRowIdx=null;
+  openMlModal(artId);
+  _mlPickerReturnRow=savedRowIdx;
+  _mlPickerReturnQ=savedQ;
 }
 
 function mlPickerCreateNew(){
@@ -3452,6 +3517,13 @@ async function saveMlItem(){
     if(mlEditId){const i=mutterliste.findIndex(a=>a.id===mlEditId);mutterliste[i]=data;}
     else mutterliste.unshift(data);
     showToast('✓ Artikel gespeichert');
+    // Re-open picker if we came from picker edit
+    if(_mlPickerReturnRow!==null&&_mlPickerReturnRow!==undefined){
+      const retRow=_mlPickerReturnRow;
+      const retQ=_mlPickerReturnQ;
+      _mlPickerReturnRow=null;_mlPickerReturnQ='';
+      setTimeout(()=>openMlPicker(retRow, retQ||data.name), 50);
+    }
     // Auto-link to ingr row if created from picker
     if(_mlPickerNewForRow!==null&&_mlPickerNewForRow!==undefined){
       const rowIdx=_mlPickerNewForRow;
