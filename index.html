@@ -744,6 +744,7 @@
     <button class="hbtn" onclick="closeDetail()" style="background:rgba(255,255,255,.15)">←</button>
     <span class="detail-bar-name" id="detailBarName"></span>
     <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="hbtn" onclick="printRezeptKalk(currentDetailId)" title="Drucken A4">🖨</button>
       <button class="hbtn" onclick="editCurrentRecipe()">✏️</button>
       <button class="hbtn" onclick="deleteCurrentRecipe()">🗑</button>
     </div>
@@ -2316,9 +2317,9 @@ function filterMlPicker(){
   const list=document.getElementById('mlPickerList');
   if(!list)return;
   if(!items.length){
-    list.innerHTML=`<div class="ml-picker-empty">Kein Artikel gefunden.<br>
-      <button class="btn-s" style="margin-top:8px" onclick="document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove());showView('mutterliste',document.querySelectorAll('.nav-tab')[4])">
-        → Artikel in Stammdaten anlegen
+    list.innerHTML=`<div class="ml-picker-empty">Kein Artikel gefunden.
+      <button class="btn-s" style="margin-top:8px" onclick="mlPickerCreateNew()">
+        + Neuer Artikel anlegen
       </button></div>`;
     return;
   }
@@ -2353,6 +2354,22 @@ function selectMlArticle(mlId){
     if(row)row.querySelector('input[type=number]')?.focus();
   },50);
 }
+
+function mlPickerCreateNew(){
+  // Get current search query to prefill name
+  const q=(document.getElementById('mlPickerQ')?.value||'').trim();
+  // Close picker overlay (keep recipe modal open)
+  document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove());
+  // Open mlModal (Neuer Artikel) with name prefilled
+  openMlModal(null);
+  if(q) document.getElementById('mlFName').value=q;
+  // After save, auto-link the new article to the ingredient row
+  _mlPickerNewForRow=_mlPickerRowIdx;
+  _mlPickerRowIdx=null;
+}
+
+// Track which ingr row triggered a "new article" creation
+let _mlPickerNewForRow=null;
 
 function closeMlPickerOutside(e){
   if(!e.target.closest('.ml-picker-overlay')&&!e.target.closest('.ml-link')){
@@ -2736,6 +2753,8 @@ function getKalk(id){
 
   // 4. Portionen nur setzen wenn noch nie gespeichert (kein manueller Wert)
   if(r?.portions&&!k._portionenManuell&&k.portionen!==r.portions){k.portionen=r.portions;changed=true;}
+  // 5. Rezept-Basisportion immer aktuell halten (bestimmt die Normierung)
+  if(r?.portions&&k.rezeptPortionen!==r.portions){k.rezeptPortionen=r.portions;changed=true;}
 
   if(changed) kalkSave(id,k);
   return k;
@@ -2745,17 +2764,19 @@ function getKalk(id){
    KALKULATION COMPUTE
 ═══════════════════════════════════════════════════════ */
 function computeKalk(k){
+  // Rezept-Basisportion: Zutatenmengen werden auf 1 Portion normiert
+  const rezBasis=parseInt(k.rezeptPortionen)||1;
   // per ingredient costs
   const zutaten=(k.zutaten||[]).map(z=>{
     const preis=parseFloat(z.vpePreis)||0;
     const vpeG=parseFloat(z.vpeGroesse)||1;
-    const rezG=parseFloat(z.rezeptGroesse)||0;
+    const rezGGesamt=parseFloat(z.rezeptGroesse)||0;
+    const rezG=rezGGesamt/rezBasis; // auf 1 Portion normieren
     let klEinheit=0;
     // Immer Preis / VPE-Größe — egal ob Gewicht, Volumen oder Stück
-    // Sonderfall: vpeGroesse=1 bei Stückeinheiten bedeutet "Preis ist pro Stück"
     klEinheit=vpeG>0?preis/vpeG:0;
     const rezeptKosten=klEinheit*rezG;
-    return{...z,klEinheit,rezeptKosten};
+    return{...z,klEinheit,rezeptKosten,rezG}; // rezG = normierte Portionsmenge
   });
 
   const rezeptKostenGesamt=zutaten.reduce((s,z)=>s+z.rezeptKosten,0);
@@ -2953,7 +2974,7 @@ function renderKalk(id){
         const vpeStyle=linked?'border-color:var(--green);background:var(--green-l)':'';
         return `<tr>
           <td><div style="font-size:.88rem;color:var(--ink);min-width:120px;padding:4px 0">${escHtml(z.name)}</div>${linkTag?`<div style="margin-top:3px">${linkTag}</div>`:''}</td>
-          <td><div class="num-inp" style="text-align:right;padding:6px 4px;font-size:.88rem;color:var(--ink2)">${z.rezeptGroesse||0}</div></td>
+          <td><div class="num-inp" style="text-align:right;padding:6px 4px;font-size:.88rem;color:var(--ink2)" title="Rezept gesamt: ${z.rezeptGroesse||0} ${escHtml(z.einheit||'')}">${+(z.rezG??z.rezeptGroesse??0).toFixed(4)%1===0?+(z.rezG??z.rezeptGroesse??0):(z.rezG??z.rezeptGroesse??0).toFixed(3)}</div></td>
           <td>
             <select disabled style="background:var(--surface2);color:var(--ink2);cursor:default;opacity:1">
               ${['g','kg','ml','l','EL','TL','St','Schale','Portion','Bund'].map(u=>`<option ${z.einheit===u?'selected':''}>` + u + '</option>').join('')}
@@ -3066,6 +3087,7 @@ function kalkRebuildFromRecipe(id){
     };
   });
   k.zutaten=newZutaten;
+  k.rezeptPortionen=r.portions||1; // Basisportion beim Neu-Einlesen setzen
   kalkSave(id,k);
   renderKalk(id);
   showToast(`✓ ${newZutaten.length} Zutaten eingelesen, ${newZutaten.filter(z=>z.mlId).length} mit Artikelstamm verknüpft`);
@@ -3378,7 +3400,7 @@ function renderMutterliste(){
               <span class="ml-toggle-lbl">${a.active!==false?'Aktiv':'Inaktiv'}</span>
             </label>
           </td>
-          <td><button class="btn-s" onclick="openMlModal(${a.id})" title="Vollständig bearbeiten / löschen">⋯</button></td>
+          <td><button class="btn-s" onclick="openMlModal(${a.id})" title="Artikel bearbeiten" style="font-size:.85rem;padding:3px 8px">✏️</button></td>
         </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -3430,6 +3452,18 @@ async function saveMlItem(){
     if(mlEditId){const i=mutterliste.findIndex(a=>a.id===mlEditId);mutterliste[i]=data;}
     else mutterliste.unshift(data);
     showToast('✓ Artikel gespeichert');
+    // Auto-link to ingr row if created from picker
+    if(_mlPickerNewForRow!==null&&_mlPickerNewForRow!==undefined){
+      const rowIdx=_mlPickerNewForRow;
+      _mlPickerNewForRow=null;
+      if(_ingrRows&&_ingrRows[rowIdx]!==undefined){
+        _ingrRows[rowIdx].mlId=data.id;
+        _ingrRows[rowIdx].name=data.name;
+        if(data.einheit) _ingrRows[rowIdx].unit=normUnit(data.einheit);
+        renderIngrRows();
+        showToast('✓ Artikel verknüpft: '+data.name);
+      }
+    }
   }
   showLoader(false);
   renderMutterliste();closeMlModal();
@@ -4202,189 +4236,192 @@ async function startApp(){
    PRINT REZEPT + KALKULATION — A4
 ═══════════════════════════════════════════════════════ */
 function printRezeptKalk(id){
+  if(!id){showToast('Kein Rezept ausgewählt');return;}
   const r=recipes.find(x=>x.id===id);
   if(!r){showToast('Rezept nicht gefunden');return;}
   const k=getKalk(id);
   const c=computeKalk(k);
   const img=imgLoad(id);
-  const portions=k.portionen||r.portions||1;
-  const factor=portions/(r.portions||1);
+  const rezBasis=parseInt(k.rezeptPortionen)||r.portions||1;
+  const kalPortion=parseInt(k.portionen)||1;
+  // Scale factor: kalk portions / recipe base portions (for ingredient display)
+  const factor=kalPortion/rezBasis;
   const weqColor=c.weq>=stamm.weqCrit?'#c0392b':c.weq>=stamm.weqWarn?'#9a6c00':'#2d7a4a';
   const now=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
 
-  // Zutaten rows
-  const zutRows=c.zutaten.map(z=>{
-    const sc=(parseFloat(z.rezeptGroesse)||0)*factor;
+  function fmtAmt(n){
+    if(!n&&n!==0) return '–';
+    const v=+n;
+    return v%1===0?String(v):v<0.01?v.toFixed(4):v<0.1?v.toFixed(3):v.toFixed(2);
+  }
+
+  // Zutaten rows — per portion (c.zutaten already has rezG = per-portion amount)
+  const zutRowsSingle=c.zutaten.map(z=>{
     const art=z.mlId?mlById(z.mlId):null;
-    const liefTag=art?`<span style="font-size:8px;background:#edf7f0;color:#2d7a4a;border:1px solid #a8d8b3;border-radius:8px;padding:1px 5px">${escHtml(art.lieferant||art.name)}</span>`:'';
+    const liefTag=art?`<span style="font-size:7.5px;background:#edf7f0;color:#2d7a4a;border:1px solid #b8dcbf;border-radius:7px;padding:0 5px;margin-left:5px">${escHtml(art.lieferant||art.name)}</span>`:'';
+    const amt=z.rezG??0; // per-portion amount from computeKalk
     return `<tr>
-      <td style="padding:4px 8px;border-bottom:1px solid #ede9e1;vertical-align:middle">
-        <span style="font-weight:500;font-size:11px">${escHtml(z.name)}</span> ${liefTag}
-      </td>
-      <td style="padding:4px 8px;border-bottom:1px solid #ede9e1;text-align:right;white-space:nowrap;font-size:11px">${(sc%1===0?sc:sc.toFixed(2))} ${escHtml(z.einheit||'')}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:11px">${z.vpePreis>0?z.vpePreis.toFixed(2)+' €':'–'}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:11px">${z.vpeGroesse>0?z.vpeGroesse+' '+escHtml(z.einheit||''):'–'}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-weight:600;font-size:11px">${z.rezeptKosten>0?z.rezeptKosten.toFixed(2)+' €':'–'}</td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;font-size:10.5px">${escHtml(z.name)}${liefTag}</td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:10.5px;white-space:nowrap;font-weight:500;color:#b5541c">${fmtAmt(amt)} ${escHtml(z.einheit||'')}</td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:9.5px;color:#8c857c">${z.vpePreis>0?z.vpePreis.toFixed(2)+' €':'–'}</td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:9.5px;color:#8c857c">${z.vpeGroesse>0?z.vpeGroesse+' '+escHtml(z.einheit||''):'–'}</td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:10px;font-weight:600">${z.rezeptKosten>0?z.rezeptKosten.toFixed(2)+' €':'–'}</td>
     </tr>`;
   }).join('');
 
-  // Steps
+  // Zutaten rows scaled to kalk portions
+  const zutRowsKalk=kalPortion>1?c.zutaten.map(z=>{
+    const art=z.mlId?mlById(z.mlId):null;
+    const liefTag=art?`<span style="font-size:7.5px;background:#edf7f0;color:#2d7a4a;border:1px solid #b8dcbf;border-radius:7px;padding:0 5px;margin-left:5px">${escHtml(art.lieferant||art.name)}</span>`:'';
+    const amt=(z.rezG??0)*kalPortion;
+    return `<tr>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;font-size:10.5px">${escHtml(z.name)}${liefTag}</td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:10.5px;white-space:nowrap;font-weight:500;color:#b5541c">${fmtAmt(amt)} ${escHtml(z.einheit||'')}</td>
+      <td colspan="2" style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;font-size:9px;color:#8c857c"></td>
+      <td style="padding:3.5px 8px;border-bottom:1px solid #ede9e1;text-align:right;font-size:10px;font-weight:600">${(z.rezeptKosten*kalPortion)>0?(z.rezeptKosten*kalPortion).toFixed(2)+' €':'–'}</td>
+    </tr>`;
+  }).join(''):'';
+
   const steps=(r.steps||[]).map((s,i)=>`
-    <div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start">
-      <div style="min-width:20px;height:20px;border-radius:50%;background:#ede9e1;border:1px solid #ddd8ce;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#4a443d;flex-shrink:0">${i+1}</div>
-      <div style="font-size:11px;color:#4a443d;line-height:1.5;padding-top:2px">${escHtml(s)}</div>
+    <div style="display:flex;gap:9px;margin-bottom:7px;align-items:flex-start">
+      <div style="min-width:18px;height:18px;border-radius:50%;background:#ede9e1;border:1px solid #ddd8ce;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#4a443d;flex-shrink:0">${i+1}</div>
+      <div style="font-size:10px;color:#4a443d;line-height:1.6">${escHtml(s)}</div>
     </div>`).join('');
 
   const allergens=(r.allergens||[]).join(' · ');
   const tags=(r.tags||[]).join(' · ');
 
   const html=`<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8"/>
+<html lang="de"><head><meta charset="UTF-8"/>
 <style>
-  @page{size:A4 portrait;margin:12mm 15mm}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#1a1714;background:#fff}
-
-  .page{display:grid;grid-template-rows:auto auto auto 1fr;min-height:267mm}
-
-  /* Header */
-  .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:2px solid #1a1714;margin-bottom:12px;gap:16px}
-  .hdr-left{flex:1}
-  .hdr-cat{font-size:8px;text-transform:uppercase;letter-spacing:.12em;color:#b5541c;font-weight:700;margin-bottom:3px}
-  .hdr-name{font-size:20px;font-weight:600;color:#1a1714;font-family:Georgia,serif;line-height:1.2;margin-bottom:6px}
-  .hdr-meta{display:flex;flex-wrap:wrap;gap:5px}
-  .hdr-tag{background:#ede9e1;border-radius:10px;padding:2px 8px;font-size:9px;color:#4a443d}
-  .hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
-  .hdr-logo{text-align:right;font-size:9px;color:#8c857c;line-height:1.5}
-  .hdr-logo strong{display:block;font-size:12px;color:#1a1714;font-family:Georgia,serif}
-  .hdr-img{width:100px;height:68px;object-fit:cover;border-radius:4px;border:1px solid #ddd8ce}
-  .hdr-emoji{width:100px;height:68px;background:#ede9e1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:36px}
-
-  /* KPI bar */
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #ddd8ce;border-radius:4px;overflow:hidden;margin-bottom:12px}
-  .kpi{padding:6px 8px;border-right:1px solid #ddd8ce;text-align:center}
-  .kpi:last-child{border-right:none}
-  .kpi.dark{background:#1a1714}
-  .kpi-l{font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:#8c857c;margin-bottom:1px}
-  .kpi.dark .kpi-l{color:rgba(255,255,255,.5)}
-  .kpi-v{font-size:12px;font-weight:700;color:#1a1714}
-  .kpi.dark .kpi-v{color:#fff}
-
-  /* WEQ bar */
-  .weqbar{height:4px;background:#ede9e1;border-radius:2px;overflow:hidden;margin-bottom:12px}
-  .weqbar-fill{height:100%;border-radius:2px}
-
-  /* Two column */
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1}
-
-  /* Section title */
-  .stitle{font-size:11px;font-weight:700;color:#1a1714;border-bottom:1px solid #ddd8ce;padding-bottom:4px;margin-bottom:8px;font-family:Georgia,serif}
-
-  /* Ingredient table */
-  .it{width:100%;border-collapse:collapse}
-  .it th{background:#ede9e1;font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:#4a443d;padding:4px 8px;text-align:left;font-weight:600}
-  .it th.r,.it td.r{text-align:right}
-  .it tr.foot td{background:#ede9e1;font-weight:700;font-size:10px;padding:4px 8px}
-
-  /* Kalk result table */
-  .kt{width:100%;border-collapse:collapse;font-size:10px}
-  .kt td{padding:3px 6px;border-bottom:1px solid #ede9e1}
-  .kt td:last-child{text-align:right;font-weight:500}
-  .kt tr.hl td{font-weight:700;font-size:11px;background:#f8f6f2}
-  .kt tr.hl td:last-child{color:${weqColor}}
-
-  /* Footer */
-  .foot{border-top:1px solid #ddd8ce;padding-top:6px;display:flex;justify-content:space-between;font-size:8px;color:#8c857c;margin-top:12px}
+@page{size:A4 portrait;margin:12mm 15mm}
+@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#1a1714;background:#fff}
+.page{display:flex;flex-direction:column;min-height:267mm}
+/* Header */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:2.5px solid #1a1714;margin-bottom:10px;gap:16px}
+.hdr-l{flex:1}
+.hdr-cat{font-size:7.5px;text-transform:uppercase;letter-spacing:.15em;color:#b5541c;font-weight:700;margin-bottom:3px}
+.hdr-name{font-size:21px;font-weight:400;font-family:Georgia,serif;color:#1a1714;line-height:1.2;margin-bottom:6px}
+.hdr-tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{background:#ede9e1;border-radius:9px;padding:2px 8px;font-size:8px;color:#4a443d}
+.tag.warn{background:#fdecea;color:#c0392b}
+.hdr-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.hdr-img{width:88px;height:62px;object-fit:cover;border-radius:4px;border:1px solid #ddd8ce}
+.hdr-emoji{width:88px;height:62px;background:#ede9e1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px}
+.hdr-logo{text-align:right;font-size:8px;color:#8c857c;line-height:1.5}
+.hdr-logo b{display:block;font-family:Georgia,serif;font-size:10.5px;color:#1a1714}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #ddd8ce;border-radius:3px;overflow:hidden;margin-bottom:5px}
+.kpi{padding:5px 7px;border-right:1px solid #ddd8ce;text-align:center}
+.kpi:last-child{border-right:none}
+.kpi.dk{background:#1a1714}
+.kpi-l{font-size:6.5px;text-transform:uppercase;letter-spacing:.07em;color:#8c857c;margin-bottom:1px}
+.kpi.dk .kpi-l{color:rgba(255,255,255,.4)}
+.kpi-v{font-size:11.5px;font-weight:700;color:#1a1714}
+.kpi.dk .kpi-v{color:#fff}
+.weqbar{height:3px;background:#ede9e1;border-radius:2px;overflow:hidden;margin-bottom:11px}
+.weqbar-f{height:100%;border-radius:2px}
+/* Columns */
+.cols{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;flex:1}
+.stitle{font-family:Georgia,serif;font-size:10px;font-weight:600;border-bottom:1px solid #ddd8ce;padding-bottom:3px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+/* Tables */
+.it{width:100%;border-collapse:collapse}
+.it th{background:#ede9e1;font-size:7.5px;text-transform:uppercase;letter-spacing:.05em;color:#4a443d;padding:3px 8px;font-weight:600}
+.it th.r,.it td.r{text-align:right}
+.it .tot td{background:#ede9e1;font-weight:700;font-size:9px;padding:3px 8px;border-top:1px solid #ddd8ce}
+.kt{width:100%;border-collapse:collapse;font-size:9.5px;margin-top:6px}
+.kt td{padding:2.5px 5px;border-bottom:1px solid #f0ece5}
+.kt td:last-child{text-align:right;font-family:monospace}
+.kt .hl td{font-weight:700;font-size:10.5px;background:#f8f6f2}
+.kt .sep td{border-top:1px solid #ddd8ce}
+/* Footer */
+.foot{border-top:1px solid #ddd8ce;padding-top:5px;display:flex;justify-content:space-between;font-size:7.5px;color:#8c857c;margin-top:auto}
+/* Divider */
+.div{height:1px;background:#ddd8ce;margin:8px 0}
 </style>
-</head>
-<body>
+</head><body>
 <div class="page">
 
-<!-- HEADER -->
 <div class="hdr">
-  <div class="hdr-left">
+  <div class="hdr-l">
     <div class="hdr-cat">${escHtml(r.category||'')}</div>
     <div class="hdr-name">${escHtml(r.name)}</div>
-    <div class="hdr-meta">
-      ${r.season?`<span class="hdr-tag">📅 ${escHtml(r.season)}</span>`:''}
-      ${r.time?`<span class="hdr-tag">${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''}
-      <span class="hdr-tag">👥 ${portions} Portionen</span>
-      ${allergens?`<span class="hdr-tag">⚠ ${escHtml(allergens)}</span>`:''}
-      ${tags?`<span class="hdr-tag">${escHtml(tags)}</span>`:''}
+    <div class="hdr-tags">
+      ${r.season?`<span class="tag">📅 ${escHtml(r.season)}</span>`:''}
+      ${r.time?`<span class="tag">${{gering:'🟢 Gering',mittel:'🟡 Mittel',hoch:'🔴 Hoch'}[r.time]||r.time}</span>`:''}
+      ${(r.tags||[]).map(t=>`<span class="tag">${escHtml(t)}</span>`).join('')}
+      ${allergens?`<span class="tag warn">⚠ ${escHtml(allergens)}</span>`:''}
     </div>
   </div>
-  <div class="hdr-right">
-    ${img?`<img src="${img}" class="hdr-img" alt="${escHtml(r.name)}"/>`:`<div class="hdr-emoji">${r.emoji||'🍽'}</div>`}
-    <div class="hdr-logo"><strong>Neue Weberei</strong>Küche · Management<br>${now}</div>
+  <div class="hdr-r">
+    ${img?`<img src="${img}" class="hdr-img"/>`:`<div class="hdr-emoji">${r.emoji||'🍽'}</div>`}
+    <div class="hdr-logo"><b>Neue Weberei</b>Küche · ${now}</div>
   </div>
 </div>
 
-<!-- KPI BAR -->
 ${c.vkBrutto>0?`
 <div class="kpis">
-  <div class="kpi dark"><div class="kpi-l">VK Brutto</div><div class="kpi-v">${fmt(c.vkBrutto)} €</div></div>
-  <div class="kpi"><div class="kpi-l">VK Netto</div><div class="kpi-v">${fmt(c.vkNetto)} €</div></div>
-  <div class="kpi"><div class="kpi-l">Warenkosten/Port.</div><div class="kpi-v">${fmt(c.warenkosten)} €</div></div>
+  <div class="kpi dk"><div class="kpi-l">VK Brutto</div><div class="kpi-v">${c.vkBrutto.toFixed(2)} €</div></div>
+  <div class="kpi"><div class="kpi-l">VK Netto</div><div class="kpi-v">${c.vkNetto.toFixed(2)} €</div></div>
+  <div class="kpi"><div class="kpi-l">Warenk./Port.</div><div class="kpi-v">${c.warenkosten.toFixed(2)} €</div></div>
   <div class="kpi"><div class="kpi-l">WEQ</div><div class="kpi-v" style="color:${weqColor}">${c.weq.toFixed(1)} %</div></div>
-  <div class="kpi"><div class="kpi-l">DB / Portion</div><div class="kpi-v" style="color:#2d7a4a">${fmt(c.db)} €</div></div>
-  <div class="kpi"><div class="kpi-l">DB gesamt (${portions} Port.)</div><div class="kpi-v" style="color:#2d7a4a">${fmt(c.dbGesamt)} €</div></div>
+  <div class="kpi"><div class="kpi-l">DB/Portion</div><div class="kpi-v" style="color:${weqColor}">${c.db.toFixed(2)} €</div></div>
+  <div class="kpi"><div class="kpi-l">DB gesamt (${kalPortion}p)</div><div class="kpi-v" style="color:${weqColor}">${c.dbGesamt.toFixed(2)} €</div></div>
 </div>
-<div class="weqbar"><div class="weqbar-fill" style="width:${Math.min(100,c.weq).toFixed(1)}%;background:${weqColor}"></div></div>`:''}
+<div class="weqbar"><div class="weqbar-f" style="width:${Math.min(100,c.weq).toFixed(1)}%;background:${weqColor}"></div></div>
+`:''}
 
-<!-- TWO COLUMNS -->
 <div class="cols">
-
-  <!-- LEFT: Zutaten + Kalkulation -->
   <div>
-    <div class="stitle">Zutaten &amp; Kalkulation</div>
+    <!-- ZUTATEN 1 Portion -->
+    <div class="stitle">Zutaten — 1 Portion</div>
     <table class="it">
-      <thead><tr>
-        <th>Zutat</th><th class="r">Menge</th><th class="r">VPE-Preis</th><th class="r">VPE-Gr.</th><th class="r">Kosten</th>
-      </tr></thead>
-      <tbody>${zutRows}</tbody>
-      <tfoot>
-        <tr class="foot"><td colspan="4">Gesamt + Schwund ${k.schwund!=null?k.schwund:stamm.schwund}%</td><td style="text-align:right">${fmt(c.warenkosten)} €</td></tr>
-      </tfoot>
+      <thead><tr><th>Zutat</th><th class="r">Menge</th><th class="r">VPE-Preis</th><th class="r">VPE-Gr.</th><th class="r">Kosten</th></tr></thead>
+      <tbody>${zutRowsSingle}</tbody>
+      <tfoot><tr class="tot"><td colspan="4">Gesamt + Schwund ${k.schwund!=null?k.schwund:stamm.schwund}%</td><td style="text-align:right">${c.warenkosten.toFixed(2)} €</td></tr></tfoot>
     </table>
 
+    ${kalPortion>1?`
+    <div class="div"></div>
+    <div class="stitle">Zutaten — ${kalPortion} Portionen</div>
+    <table class="it">
+      <thead><tr><th>Zutat</th><th class="r">Menge gesamt</th><th colspan="2"></th><th class="r">Kosten</th></tr></thead>
+      <tbody>${zutRowsKalk}</tbody>
+      <tfoot><tr class="tot"><td colspan="4">Gesamt Wareneinsatz</td><td style="text-align:right">${(c.warenkosten*kalPortion).toFixed(2)} €</td></tr></tfoot>
+    </table>`:''}
+
     ${c.vkBrutto>0?`
-    <div style="margin-top:12px">
-      <div class="stitle">Kalkulations-Ergebnis</div>
-      <table class="kt">
-        <tr><td>VK Brutto</td><td>${fmt(c.vkBrutto)} €</td></tr>
-        <tr><td>MwSt. (${stamm.mwst}%)</td><td>${fmt(c.vkBrutto-c.vkNetto)} €</td></tr>
-        <tr><td>VK Netto</td><td>${fmt(c.vkNetto)} €</td></tr>
-        <tr><td>Warenkosten / Portion</td><td>${fmt(c.warenkosten)} €</td></tr>
-        <tr class="hl"><td>WEQ</td><td>${c.weq.toFixed(1)} %</td></tr>
-        <tr class="hl"><td>DB / Portion</td><td style="color:#2d7a4a">${fmt(c.db)} €</td></tr>
-        <tr><td>Geplante Portionen</td><td>${k.portionen}</td></tr>
-        <tr class="hl"><td>DB gesamt</td><td style="color:#2d7a4a">${fmt(c.dbGesamt)} €</td></tr>
-      </table>
-    </div>`:''}
+    <div class="div"></div>
+    <div class="stitle">Kalkulation</div>
+    <table class="kt">
+      <tr><td>Warenkosten/Portion</td><td>${c.warenkosten.toFixed(2)} €</td></tr>
+      <tr><td>VK Brutto</td><td>${c.vkBrutto.toFixed(2)} €</td></tr>
+      <tr><td>MwSt. (${stamm.mwst}%)</td><td>${(c.vkBrutto-c.vkNetto).toFixed(2)} €</td></tr>
+      <tr class="sep"><td>VK Netto</td><td>${c.vkNetto.toFixed(2)} €</td></tr>
+      <tr class="hl"><td>WEQ</td><td style="color:${weqColor}">${c.weq.toFixed(1)} %</td></tr>
+      <tr class="hl sep"><td>DB / Portion</td><td style="color:${c.db>0?'#2d7a4a':'#c0392b'}">${c.db.toFixed(2)} €</td></tr>
+      <tr><td>Portionen geplant</td><td>${kalPortion}</td></tr>
+      <tr class="hl"><td>DB gesamt</td><td style="color:${c.dbGesamt>0?'#2d7a4a':'#c0392b'}">${c.dbGesamt.toFixed(2)} €</td></tr>
+    </table>`:''}
   </div>
 
-  <!-- RIGHT: Zubereitung -->
   <div>
     <div class="stitle">Zubereitung</div>
-    ${steps||'<div style="font-size:10px;color:#8c857c;font-style:italic">Keine Schritte vorhanden.</div>'}
-    ${r.notes?`<div style="margin-top:12px"><div class="stitle">Notizen</div><div style="font-size:10px;color:#4a443d;background:#f8f6f2;padding:7px;border-radius:3px;line-height:1.5">${escHtml(r.notes)}</div></div>`:''}
+    <div>${steps||'<div style="font-size:9.5px;color:#8c857c;font-style:italic">Keine Schritte vorhanden.</div>'}</div>
+    ${r.notes?`<div class="div"></div><div class="stitle">Notizen</div><div style="font-size:9.5px;color:#4a443d;background:#f8f6f2;padding:6px;border-radius:3px;line-height:1.5">${escHtml(r.notes)}</div>`:''}
+    ${(r.allergens||[]).length?`<div class="div"></div><div class="stitle">Allergene</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${(r.allergens||[]).map(a=>`<span style="background:#fdecea;color:#c0392b;font-size:8px;border-radius:8px;padding:1px 6px">${escHtml(a)}</span>`).join('')}</div>`:''}
   </div>
-
-</div><!-- /cols -->
-
-<!-- FOOTER -->
-<div class="foot">
-  <span>Neue Weberei · Küche Management</span>
-  <span>${escHtml(r.name)} · ${portions} Portionen</span>
-  <span>Erstellt: ${now}</span>
 </div>
 
-</div><!-- /page -->
-</body></html>`;
+<div class="foot">
+  <span>Neue Weberei · Küche Management</span>
+  <span>${escHtml(r.name)} · 1 Portion / ${kalPortion} geplant</span>
+  <span>${now}</span>
+</div>
+</div></body></html>`;
 
-  // Open in iframe and print
   let pw=document.getElementById('printWindow');
   if(!pw){pw=document.createElement('div');pw.id='printWindow';document.body.appendChild(pw);}
   pw.style.cssText='display:block;position:fixed;inset:0;z-index:99999;background:#fff';
@@ -4399,8 +4436,7 @@ ${c.vkBrutto>0?`
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
     iframe.contentWindow.onafterprint=()=>{pw.style.display='none';pw.innerHTML='';};
-    // fallback close
-    setTimeout(()=>{if(pw.style.display!=='none'){pw.style.display='none';pw.innerHTML='';}},5000);
+    setTimeout(()=>{if(pw.style.display!=='none'){pw.style.display='none';pw.innerHTML='';}},8000);
   };
 }
 
