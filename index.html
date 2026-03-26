@@ -201,9 +201,11 @@
     .ml-picker-dd .ml-opt:last-child{border-bottom:none}
     .ml-picker-dd .ml-opt .mo-name{font-weight:500;display:block}
     .ml-picker-dd .ml-opt .mo-lief{font-size:.72rem;color:var(--ink3);display:block;margin-top:1px}
+    .ml-picker-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface)}
+    .ml-picker-tab{flex:1;padding:8px 10px;font-size:.78rem;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--ink3);border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;transition:all .12s}
+    .ml-picker-tab:hover{color:var(--ink)}
+    .ml-picker-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:#fff}
     .ml-picker-dd .ml-opt .mo-price{font-size:.78rem;color:var(--ink2);white-space:nowrap;text-align:right}
-    .ml-picker-dd .ml-opt .mo-edit{opacity:0;font-size:.7rem;color:var(--accent);background:var(--accent-l);border:1px solid #e8c4a8;border-radius:5px;padding:2px 7px;cursor:pointer;white-space:nowrap;transition:opacity .15s;flex-shrink:0}
-    .ml-picker-dd .ml-opt:hover .mo-edit{opacity:1}
     .ml-picker-dd .ml-opt .mo-edit{opacity:0;font-size:.7rem;color:var(--accent);background:var(--accent-l);border:1px solid #e8c4a8;border-radius:5px;padding:2px 7px;cursor:pointer;white-space:nowrap;transition:opacity .15s;flex-shrink:0}
     .ml-picker-dd .ml-opt:hover .mo-edit{opacity:1}
     .ml-picker-empty{padding:20px;text-align:center;color:var(--ink3);font-size:.83rem}
@@ -1942,7 +1944,15 @@ function delDetailImg(id,e){
 }
 function adjPort(id,d){const r=recipes.find(x=>x.id===id);detailPortions=Math.max(1,detailPortions+d);renderDetail(r,detailPortions);}
 function closeDetail(){document.getElementById('detailOv').classList.remove('open');currentDetailId=null;}
-function editCurrentRecipe(){if(currentDetailId){const id=currentDetailId;closeDetail();editRecipe(id);}}
+function editCurrentRecipe(){
+  if(!currentDetailId) return;
+  const id=currentDetailId;
+  const r=recipes.find(x=>x.id===id);
+  if(!r){showToast('Rezept nicht gefunden');return;}
+  closeDetail();
+  // Small delay so closeDetail animation doesn't interfere with modal open
+  setTimeout(()=>editRecipe(id),50);
+}
 async function deleteRecipeCard(id){
   if(!confirm('Rezept wirklich löschen?'))return;
   const r=recipes.find(x=>x.id===id);
@@ -2300,6 +2310,7 @@ function collectIngrRows(){return _ingrRows.filter(r=>r.name.trim()||r.amount).m
 /* ML PICKER – centered overlay, accessible from anywhere in modal */
 let _mlPickerRowIdx=null;
 let _ingrSuggestTimeout=null;
+let _mlPickerTab='art'; // 'art' | 'rez'
 
 function showIngrSuggest(rowIdx, val){
   // Only auto-open picker if user typed at least 1 char and no article linked yet
@@ -2317,19 +2328,28 @@ function openMlPicker(rowIdx, prefillQ){
   const ov=document.createElement('div');
   ov.className='ml-picker-overlay ml-picker-dd';
   const art=_ingrRows[rowIdx]?.mlId?mlById(_ingrRows[rowIdx].mlId):null;
+  const curRecipeRef=_ingrRows[rowIdx]?.recipeRef;
+  const curRefRecipe=curRecipeRef?recipes.find(x=>x.id===curRecipeRef):null;
+  // Auto-select correct tab based on current link
+  _mlPickerTab=curRecipeRef?'rez':'art';
   ov.innerHTML=`
     <div class="ml-picker-box">
       <div class="ml-picker-head">
-        <strong>📦 Artikel / Rezept wählen</strong>
+        <strong>Zutat wählen</strong>
         <button onclick="document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove())">✕</button>
       </div>
+      <div class="ml-picker-tabs">
+        <button class="ml-picker-tab ${_mlPickerTab==='art'?'active':''}" id="pickerTabArt" onclick="switchPickerTab('art')">📦 Artikelstamm</button>
+        <button class="ml-picker-tab ${_mlPickerTab==='rez'?'active':''}" id="pickerTabRez" onclick="switchPickerTab('rez')">📋 Rezept als Zutat</button>
+      </div>
       <div class="ml-picker-search-wrap">
-        <input id="mlPickerQ" placeholder="Name, Art.-Nr. oder Lieferant …"
+        <input id="mlPickerQ" placeholder="Suchen …"
           value="${escAttr(prefillQ||_ingrRows[rowIdx]?.name||'')}"
           oninput="filterMlPicker()" autocomplete="off"/>
       </div>
       <div class="ml-picker-list" id="mlPickerList"></div>
-      ${art?`<div class="ml-picker-remove" onclick="selectMlArticle(null)">🗑 Verknüpfung mit „${escHtml(art.name)}" entfernen</div>`:''}
+      ${art?`<div class="ml-picker-remove" onclick="selectMlArticle(null)">🗑 Artikel-Verknüpfung entfernen</div>`:''}
+      ${curRefRecipe?`<div class="ml-picker-remove" style="color:#3d4f8a;border-top-color:#8896cc" onclick="removeRecipeRef()">🗑 Rezept-Verknüpfung „${escHtml(curRefRecipe.name)}" entfernen</div>`:''}
     </div>`;
 
   // Close on overlay background click
@@ -2341,37 +2361,83 @@ function openMlPicker(rowIdx, prefillQ){
   filterMlPicker();
 }
 
+function switchPickerTab(tab){
+  _mlPickerTab=tab;
+  document.getElementById('pickerTabArt')?.classList.toggle('active', tab==='art');
+  document.getElementById('pickerTabRez')?.classList.toggle('active', tab==='rez');
+  // Update placeholder
+  const inp=document.getElementById('mlPickerQ');
+  if(inp) inp.placeholder=tab==='rez'?'Rezept suchen …':'Name, Art.-Nr. oder Lieferant …';
+  filterMlPicker();
+}
+
+function removeRecipeRef(){
+  if(_mlPickerRowIdx===null)return;
+  _ingrRows[_mlPickerRowIdx].recipeRef=null;
+  _ingrRows[_mlPickerRowIdx].unit='g';
+  document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove());
+  _mlPickerRowIdx=null;
+  renderIngrRows();
+  scheduleDraft();
+}
+
 function filterMlPicker(){
   const q=(document.getElementById('mlPickerQ')?.value||'').toLowerCase().trim();
+  const list=document.getElementById('mlPickerList');
+  if(!list)return;
 
-  // ── Artikel aus Stammdaten ──
+  if(_mlPickerTab==='rez'){
+    // ── Rezepte als Zutat ──
+    const recipeItems=recipes.filter(r=>
+      r.id!==undefined&&
+      (!q||r.name.toLowerCase().includes(q)||(r.category||'').toLowerCase().includes(q))
+    );
+    if(!recipeItems.length){
+      list.innerHTML=`<div class="ml-picker-empty" style="color:#3d4f8a">Keine Rezepte gefunden.</div>`;
+      return;
+    }
+    // Group by category
+    const grouped=new Map();
+    recipeItems.forEach(r=>{
+      const cat=r.category||'Sonstige';
+      if(!grouped.has(cat))grouped.set(cat,[]);
+      grouped.get(cat).push(r);
+    });
+    let html='';
+    grouped.forEach((recs,cat)=>{
+      html+=`<div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:#3d4f8a;padding:6px 14px 3px;background:#eef0f8;font-weight:600">${escHtml(cat)}</div>`;
+      html+=recs.map(r=>{
+        const rk=kalkLoad(r.id);
+        const rc=rk?computeKalk(rk):null;
+        const priceStr=rc&&rc.warenkosten>0?rc.warenkosten.toFixed(2)+' €/Port.':'kein Preis';
+        return `<div class="ml-opt" onclick="selectRecipeAsIngr(${r.id})" style="border-left:3px solid #8896cc">
+          <div style="flex:1;min-width:0">
+            <span class="mo-name">${escHtml(r.emoji||'🍽')} ${escHtml(r.name)}</span>
+            <span class="mo-lief" style="color:#5b6fa8">${escHtml(r.category||'')} · ${r.portions||1} Portion${(r.portions||1)!==1?'en':''}</span>
+          </div>
+          <div class="mo-price" style="color:#3d4f8a">${priceStr}</div>
+        </div>`;
+      }).join('');
+    });
+    list.innerHTML=html;
+    return;
+  }
+
+  // ── Artikelstamm-Tab ──
   let artItems=mutterliste.filter(a=>a.active!==false&&
     (!q||a.name.toLowerCase().includes(q)||(a.artNr||'').includes(q)||(a.lieferant||'').toLowerCase().includes(q))
   );
   if(q) artItems.sort((a,b)=>(a.name.toLowerCase().startsWith(q)?0:1)-(b.name.toLowerCase().startsWith(q)?0:1));
-  artItems=artItems.slice(0,30);
+  artItems=artItems.slice(0,40);
 
-  // ── Rezepte als Zutat (alle Kategorien, die sich als Zutat eignen) ──
-  const recipeItems=recipes.filter(r=>
-    r.id!==undefined && // nur geladene Rezepte
-    (!q||r.name.toLowerCase().includes(q)||(r.category||'').toLowerCase().includes(q))
-  ).slice(0,15);
-
-  const list=document.getElementById('mlPickerList');
-  if(!list)return;
-
-  if(!artItems.length&&!recipeItems.length){
+  if(!artItems.length){
     list.innerHTML=`<div class="ml-picker-empty">Kein Artikel gefunden.
       <button class="btn-s" style="margin-top:8px" onclick="mlPickerCreateNew()">
         + Neuer Artikel anlegen
       </button></div>`;
     return;
   }
-
-  let html='';
-  if(artItems.length){
-    html+=`<div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);padding:6px 14px 3px;background:var(--surface2)">Artikelstamm</div>`;
-    html+=artItems.map(a=>`
+  list.innerHTML=artItems.map(a=>`
     <div class="ml-opt" onclick="selectMlArticle(${a.id})">
       <div style="flex:1;min-width:0">
         <span class="mo-name">${escHtml(a.name)}</span>
@@ -2380,23 +2446,6 @@ function filterMlPicker(){
       <div class="mo-price">${a.preis!=null?a.preis.toFixed(2)+' €'+(a.vpe?' / '+a.vpe+' '+a.einheit:''):'–'}</div>
       <button class="mo-edit" onclick="mlPickerEditArticle(${a.id},event)" title="Artikel bearbeiten">✏️ bearb.</button>
     </div>`).join('');
-  }
-  if(recipeItems.length){
-    html+=`<div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:#3d4f8a;padding:6px 14px 3px;background:#eef0f8">📋 Rezepte als Zutat</div>`;
-    html+=recipeItems.map(r=>{
-      const rk=kalkLoad(r.id);
-      const rc=rk?computeKalk(rk):null;
-      const priceStr=rc&&rc.warenkosten>0?rc.warenkosten.toFixed(2)+' €/Port.':'kein Preis';
-      return `<div class="ml-opt" onclick="selectRecipeAsIngr(${r.id})" style="border-left:3px solid #8896cc">
-        <div style="flex:1;min-width:0">
-          <span class="mo-name">${escHtml(r.emoji||'🍽')} ${escHtml(r.name)}</span>
-          <span class="mo-lief" style="color:#5b6fa8">${escHtml(r.category||'')} · ${r.portions||1} Portion${(r.portions||1)!==1?'en':''}</span>
-        </div>
-        <div class="mo-price" style="color:#3d4f8a">${priceStr}</div>
-      </div>`;
-    }).join('');
-  }
-  list.innerHTML=html;
 }
 
 function selectRecipeAsIngr(recipeId){
@@ -2404,26 +2453,6 @@ function selectRecipeAsIngr(recipeId){
   const r=recipes.find(x=>x.id===recipeId);
   if(!r)return;
   // Set name, recipeRef, clear mlId, set unit to Portion
-  _ingrRows[_mlPickerRowIdx].name=r.name;
-  _ingrRows[_mlPickerRowIdx].recipeRef=recipeId;
-  _ingrRows[_mlPickerRowIdx].mlId=null;
-  _ingrRows[_mlPickerRowIdx].unit='Portion';
-  if(!_ingrRows[_mlPickerRowIdx].amount) _ingrRows[_mlPickerRowIdx].amount='1';
-  document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove());
-  const _focusIdx=_mlPickerRowIdx;
-  _mlPickerRowIdx=null;
-  renderIngrRows();
-  setTimeout(()=>{
-    const row=document.getElementById('ir-'+(_focusIdx??0));
-    if(row)row.querySelector('input[type=number]')?.focus();
-  },50);
-  scheduleDraft();
-}
-
-function selectRecipeAsIngr(recipeId){
-  if(_mlPickerRowIdx===null)return;
-  const r=recipes.find(x=>x.id===recipeId);
-  if(!r)return;
   _ingrRows[_mlPickerRowIdx].name=r.name;
   _ingrRows[_mlPickerRowIdx].recipeRef=recipeId;
   _ingrRows[_mlPickerRowIdx].mlId=null;
@@ -4296,8 +4325,8 @@ function fmtMenge(amt,unit){
   }
 })();
 
-// Modal close on backdrop click
-['recipeModal','dayModal','assignModal','mlModal','pdfImportModal'].forEach(id=>{
+// Modal close on backdrop click (recipeModal hat eigenen Handler via onclick)
+['dayModal','assignModal','mlModal','pdfImportModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) document.getElementById(id).classList.remove('open');});
 });
 
