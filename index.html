@@ -4192,28 +4192,43 @@ function buildShoppingList(){
         if(!r)return;
         const factor=pax/(r.portions||1);
 
-        (r.ingredients||[]).forEach(ing=>{
-          const mlId=ing.mlId||null;
-          const mapKey=mlId?`ml:${mlId}`:`name:${ing.name.toLowerCase().trim()}`;
-          const existing=map.get(mapKey);
-          const amt=parseFloat(ing.amount)||0;
-          const scaledAmt=amt*factor;
-
-          if(existing){
-            existing.totalAmount+=scaledAmt;
-            if(!existing.rezepte.includes(r.name))existing.rezepte.push(r.name);
-          } else {
-            // Try mlId first, then name fallback — so linked articles always get correct Lieferant
-            const article=resolveArticleForIngr(ing);
-            map.set(mapKey,{
-              mapKey,mlId,article,
-              name:article?article.name:ing.name,
-              unit:ing.unit,
-              totalAmount:scaledAmt,
-              rezepte:[r.name],
-            });
-          }
-        });
+        // Flache Zutaten-Liste aufbauen — Unterrezepte werden aufgelöst
+        function collectIngredients(recipe, scaleFactor, depth){
+          if(depth>3) return; // Rekursionsschutz
+          (recipe.ingredients||[]).forEach(ing=>{
+            // Prüfen ob Zutat selbst ein Rezept ist (Name-Match)
+            const subRecipe=recipes.find(sr=>
+              sr.id!==recipe.id &&
+              sr.name.trim().toLowerCase()===ing.name.trim().toLowerCase()
+            );
+            if(subRecipe){
+              // Unterrezept auflösen: Menge skalieren relativ zu Portionen des Unterrezepts
+              const amt=parseFloat(ing.amount)||0;
+              const subFactor=scaleFactor*(amt/(subRecipe.portions||1));
+              collectIngredients(subRecipe, subFactor, depth+1);
+              return;
+            }
+            // Normaler Artikel
+            const mlId=ing.mlId||null;
+            const mapKey=mlId?`ml:${mlId}`:`name:${ing.name.toLowerCase().trim()}`;
+            const existing=map.get(mapKey);
+            const scaledAmt=(parseFloat(ing.amount)||0)*scaleFactor;
+            if(existing){
+              existing.totalAmount+=scaledAmt;
+              if(!existing.rezepte.includes(r.name))existing.rezepte.push(r.name);
+            } else {
+              const article=resolveArticleForIngr(ing);
+              map.set(mapKey,{
+                mapKey,mlId,article,
+                name:article?article.name:ing.name,
+                unit:ing.unit,
+                totalAmount:scaledAmt,
+                rezepte:[r.name],
+              });
+            }
+          });
+        }
+        collectIngredients(r, factor, 0);
       });
     }
   });
