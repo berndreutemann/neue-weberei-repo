@@ -2754,6 +2754,7 @@ function getKalk(id){
     k={
       vkBrutto: r?.cost ? +(r.cost*(1+stamm.mwst/100)).toFixed(2) : 0,
       portionen: r?.portions||4,
+      rezeptPortionen: r?.portions||1, // Basisportion des Rezepts — Divisor für Portionsnormierung
       schwund: stamm.schwund,
       zutaten: (r?.ingredients||[]).map(i=>{
         const art=resolveArticleForIngr(i);
@@ -2789,7 +2790,7 @@ function getKalk(id){
       const newAmount=parseFloat(recipeIngr.amount)||0;
       if(z.rezeptGroesse!==newAmount){z.rezeptGroesse=newAmount;changed=true;}
       // Einheit immer aus Rezept – auch bei verknüpften Artikeln
-      if(recipeIngr.unit&&z.einheit!==recipeIngr.unit){z.einheit=recipeIngr.unit;changed=true;}
+      if(recipeIngr.unit&&normUnit(z.einheit)!==normUnit(recipeIngr.unit)){z.einheit=normUnit(recipeIngr.unit);changed=true;}
     }
   });
 
@@ -2802,7 +2803,7 @@ function getKalk(id){
         name:i.name, mlId:art?.id||null,
         vpePreis:art?.preis??0,
         vpeGroesse:art?convertVpeToRecipeUnit(art.vpe,art.einheit,i.unit||'g'):(1000),
-        einheit:art?.einheit||i.unit||'g',
+        einheit:normUnit(i.unit)||normUnit(art?.einheit)||'g', // Rezepteinheit hat Vorrang
         rezeptGroesse:parseFloat(i.amount)||0
       });
       changed=true;
@@ -2819,7 +2820,8 @@ function getKalk(id){
   // 4. Portionen nur setzen wenn noch nie gespeichert (kein manueller Wert)
   if(r?.portions&&!k._portionenManuell&&k.portionen!==r.portions){k.portionen=r.portions;changed=true;}
   // 5. Rezept-Basisportion immer aktuell halten (bestimmt die Normierung)
-  if(r?.portions&&k.rezeptPortionen!==r.portions){k.rezeptPortionen=r.portions;changed=true;}
+  // Auch initialisieren wenn noch nicht vorhanden (alte gespeicherte Kalks ohne dieses Feld)
+  if(r?.portions&&(!k.rezeptPortionen||k.rezeptPortionen!==r.portions)){k.rezeptPortionen=r.portions;changed=true;}
 
   if(changed) kalkSave(id,k);
   return k;
