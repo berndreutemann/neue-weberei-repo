@@ -160,9 +160,9 @@
     .img-preview-actions{display:flex;gap:6px;padding:8px;background:var(--surface2);justify-content:flex-end;border-top:1px solid var(--border)}
 
     /* MODALS */
-    .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto}
+    .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;cursor:default}
     .modal-ov.open{display:flex}
-    .modal{background:var(--surface);border-radius:var(--r);width:100%;max-width:640px;box-shadow:0 8px 40px rgba(0,0,0,.2);animation:su .2s ease}
+    .modal{background:var(--surface);border-radius:var(--r);width:100%;max-width:640px;box-shadow:0 8px 40px rgba(0,0,0,.2);animation:su .2s ease;cursor:default}
     @keyframes su{from{opacity:0;transform:translateY(16px)}}
     .modal-h{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
     .modal-title{font-family:'Playfair Display',serif;font-size:1.15rem}
@@ -2111,10 +2111,19 @@ function discardRecipeDraft(){
 }
 
 function recipeModalOverlayClick(e){
-  // Only close if click is directly on the overlay (not on modal content)
+  // Nur schließen wenn der Klick wirklich auf dem dunklen Overlay selbst begann
+  // (nicht auf Modal-Inhalt der Event hochbubblt)
   if(e.target!==e.currentTarget) return;
+  // Zusätzliche Prüfung: war der mousedown auch auf dem Overlay?
+  if(!_overlayMousedownOnBg) return;
+  _overlayMousedownOnBg=false;
   maybeCloseRecipeModal();
 }
+let _overlayMousedownOnBg=false;
+(function(){
+  const ov=document.getElementById('recipeModal');
+  ov.addEventListener('mousedown',e=>{_overlayMousedownOnBg=(e.target===ov);});
+})();
 
 function goToKalkFromModal(){
   if(!editingId) return;
