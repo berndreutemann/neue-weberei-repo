@@ -4196,15 +4196,27 @@ function buildShoppingList(){
         function collectIngredients(recipe, scaleFactor, depth){
           if(depth>3) return; // Rekursionsschutz
           (recipe.ingredients||[]).forEach(ing=>{
-            // Prüfen ob Zutat selbst ein Rezept ist (Name-Match)
+            // Prüfen ob Zutat selbst ein Rezept ist (Name-Match, auch wenn mlId gesetzt)
+            const ingNameLow=ing.name.trim().toLowerCase();
             const subRecipe=recipes.find(sr=>
-              sr.id!==recipe.id &&
-              sr.name.trim().toLowerCase()===ing.name.trim().toLowerCase()
+              sr.id!==recipe.id && (
+                sr.name.trim().toLowerCase()===ingNameLow ||
+                // Auch Teilmatch: "Tomatensoße" findet "Tomatensoße (Basis)"
+                sr.name.trim().toLowerCase().startsWith(ingNameLow) ||
+                ingNameLow.startsWith(sr.name.trim().toLowerCase())
+              )
             );
             if(subRecipe){
-              // Unterrezept auflösen: Menge skalieren relativ zu Portionen des Unterrezepts
               const amt=parseFloat(ing.amount)||0;
-              const subFactor=scaleFactor*(amt/(subRecipe.portions||1));
+              const ingUnit=(ing.unit||'').toLowerCase();
+              let subFactor;
+              if(ingUnit==='portion'||ingUnit==='portionen'||ingUnit==='port.'||ingUnit==='st'||ingUnit===''||!ingUnit){
+                // Einheit = Portion/Stück: amt Portionen des Unterrezepts
+                subFactor=scaleFactor*(amt/(subRecipe.portions||1));
+              } else {
+                // Gewichts-/Volumeneinheit: Verhältnis kann nicht aufgelöst werden → 1:1
+                subFactor=scaleFactor*(amt/(subRecipe.portions||1));
+              }
               collectIngredients(subRecipe, subFactor, depth+1);
               return;
             }
@@ -4282,7 +4294,9 @@ function renderEinkaufsliste(){
       let vpeInfo='';
       let kostenInfo='';
       if(item.article?.vpe&&item.article?.preis){
-        const vpeNeeded=Math.ceil(item.totalAmount/item.article.vpe);
+        // VPE in Rezepteinheit umrechnen (z.B. article.vpe=5 kg → 5000 g wenn item.unit='g')
+        const artVpeInRezUnit=convertVpeToRecipeUnit(item.article.vpe||1, item.article.einheit, item.unit);
+        const vpeNeeded=artVpeInRezUnit>0?Math.ceil(item.totalAmount/artVpeInRezUnit):1;
         const kosten=vpeNeeded*item.article.preis;
         liefKosten+=kosten;
         totalKosten+=kosten;
