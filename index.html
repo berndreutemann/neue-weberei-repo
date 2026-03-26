@@ -62,6 +62,8 @@
     .dish-chip .dish-name{font-weight:500;line-height:1.3;font-size:.87rem}
     .dish-chip .dish-price{font-size:.75rem;color:var(--accent);font-weight:600;margin-top:2px}
     .dish-chip.veggie{border-left-color:var(--green)}
+    .ml-link.recipe-linked{background:#eef0f8;border-color:#8896cc;color:#3d4f8a}
+    .ml-link.recipe-linked{background:#eef0f8;border-color:#8896cc;color:#3d4f8a}
     .add-dish-btn{margin-top:2px;padding:4px 8px;border:1px dashed var(--border);border-radius:var(--r);background:none;color:var(--ink3);font-size:.73rem;cursor:pointer;text-align:left;width:100%;transition:all .15s}
     .add-dish-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
     .cal-cell input,.cal-cell select,.cal-cell textarea{width:100%;border:1px solid transparent;border-radius:var(--r);padding:5px 7px;font-family:'DM Sans',sans-serif;font-size:.82rem;background:transparent;color:var(--ink);outline:none;transition:border-color .15s,background .15s;resize:none}
@@ -2276,13 +2278,15 @@ function renderIngrRows(){
           oninput="_ingrRows[${i}].name=this.value;showIngrSuggest(${i},this.value)"
           onfocus="showIngrSuggest(${i},this.value)"
           id="ingr-name-${i}"
-          style="${linked?'border-color:var(--green);background:var(--green-l);':''}"
+          style="${linked?'border-color:var(--green);background:var(--green-l);':row.recipeRef?'border-color:#5b6fa8;background:#eef0f8;':''}"
           autocomplete="off"/>
-        ${linked?`<div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:.68rem;color:var(--green);font-weight:600;pointer-events:none;white-space:nowrap">🔗 ${escHtml(art.lieferant||'Verknüpft')}</div>`:''}
+        ${linked?`<div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:.68rem;color:var(--green);font-weight:600;pointer-events:none;white-space:nowrap">🔗 ${escHtml(art.lieferant||'Verknüpft')}</div>`
+        :row.recipeRef?`<div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:.68rem;color:#5b6fa8;font-weight:600;pointer-events:none;white-space:nowrap">📋 Rezept</div>`:''
+      }
       </div>
-      <button type="button" class="ml-link${linked?' linked':''}" onclick="openMlPicker(${i})"
-        title="${linked?'Artikel: '+escAttr(art.name)+' – klicken zum Ändern':'Aus Artikelstamm wählen'}">
-        ${linked?'📦':'📦'}
+      <button type="button" class="ml-link${linked?' linked':row.recipeRef?' recipe-linked':''}" onclick="openMlPicker(${i})"
+        title="${linked?'Artikel: '+escAttr(art.name)+' – klicken zum Ändern':row.recipeRef?'Rezept verknüpft – klicken zum Ändern':'Aus Artikelstamm wählen'}">
+        ${linked?'📦':row.recipeRef?'📋':'📦'}
       </button>
       <button type="button" class="del-ingr" onclick="delIngrRow(${i})">✕</button>
     </div>`;
@@ -2291,7 +2295,7 @@ function renderIngrRows(){
 
 function addIngrRow(){_ingrRows.push({amount:'',unit:'g',name:'',mlId:null});renderIngrRows();scheduleDraft();}
 function delIngrRow(i){if(_ingrRows.length>1)_ingrRows.splice(i,1);else _ingrRows[i]={amount:'',unit:'g',name:'',mlId:null};renderIngrRows();scheduleDraft();}
-function collectIngrRows(){return _ingrRows.filter(r=>r.name.trim()||r.amount).map(r=>({amount:r.amount,unit:r.unit,name:r.name,mlId:r.mlId||null}));}
+function collectIngrRows(){return _ingrRows.filter(r=>r.name.trim()||r.amount).map(r=>({amount:r.amount,unit:r.unit,name:r.name,mlId:r.mlId||null,recipeRef:r.recipeRef||null}));}
 
 /* ML PICKER – centered overlay, accessible from anywhere in modal */
 let _mlPickerRowIdx=null;
@@ -2316,7 +2320,7 @@ function openMlPicker(rowIdx, prefillQ){
   ov.innerHTML=`
     <div class="ml-picker-box">
       <div class="ml-picker-head">
-        <strong>📦 Artikel aus Stammdaten wählen</strong>
+        <strong>📦 Artikel / Rezept wählen</strong>
         <button onclick="document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove())">✕</button>
       </div>
       <div class="ml-picker-search-wrap">
@@ -2339,27 +2343,35 @@ function openMlPicker(rowIdx, prefillQ){
 
 function filterMlPicker(){
   const q=(document.getElementById('mlPickerQ')?.value||'').toLowerCase().trim();
-  let items=mutterliste.filter(a=>a.active!==false&&
+
+  // ── Artikel aus Stammdaten ──
+  let artItems=mutterliste.filter(a=>a.active!==false&&
     (!q||a.name.toLowerCase().includes(q)||(a.artNr||'').includes(q)||(a.lieferant||'').toLowerCase().includes(q))
   );
-  // Sort: exact-start matches first
-  if(q) items.sort((a,b)=>{
-    const aS=a.name.toLowerCase().startsWith(q)?0:1;
-    const bS=b.name.toLowerCase().startsWith(q)?0:1;
-    return aS-bS;
-  });
-  items=items.slice(0,40);
+  if(q) artItems.sort((a,b)=>(a.name.toLowerCase().startsWith(q)?0:1)-(b.name.toLowerCase().startsWith(q)?0:1));
+  artItems=artItems.slice(0,30);
+
+  // ── Rezepte als Zutat (alle Kategorien, die sich als Zutat eignen) ──
+  const recipeItems=recipes.filter(r=>
+    r.id!==undefined && // nur geladene Rezepte
+    (!q||r.name.toLowerCase().includes(q)||(r.category||'').toLowerCase().includes(q))
+  ).slice(0,15);
 
   const list=document.getElementById('mlPickerList');
   if(!list)return;
-  if(!items.length){
+
+  if(!artItems.length&&!recipeItems.length){
     list.innerHTML=`<div class="ml-picker-empty">Kein Artikel gefunden.
       <button class="btn-s" style="margin-top:8px" onclick="mlPickerCreateNew()">
         + Neuer Artikel anlegen
       </button></div>`;
     return;
   }
-  list.innerHTML=items.map(a=>`
+
+  let html='';
+  if(artItems.length){
+    html+=`<div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);padding:6px 14px 3px;background:var(--surface2)">Artikelstamm</div>`;
+    html+=artItems.map(a=>`
     <div class="ml-opt" onclick="selectMlArticle(${a.id})">
       <div style="flex:1;min-width:0">
         <span class="mo-name">${escHtml(a.name)}</span>
@@ -2368,11 +2380,70 @@ function filterMlPicker(){
       <div class="mo-price">${a.preis!=null?a.preis.toFixed(2)+' €'+(a.vpe?' / '+a.vpe+' '+a.einheit:''):'–'}</div>
       <button class="mo-edit" onclick="mlPickerEditArticle(${a.id},event)" title="Artikel bearbeiten">✏️ bearb.</button>
     </div>`).join('');
+  }
+  if(recipeItems.length){
+    html+=`<div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:#3d4f8a;padding:6px 14px 3px;background:#eef0f8">📋 Rezepte als Zutat</div>`;
+    html+=recipeItems.map(r=>{
+      const rk=kalkLoad(r.id);
+      const rc=rk?computeKalk(rk):null;
+      const priceStr=rc&&rc.warenkosten>0?rc.warenkosten.toFixed(2)+' €/Port.':'kein Preis';
+      return `<div class="ml-opt" onclick="selectRecipeAsIngr(${r.id})" style="border-left:3px solid #8896cc">
+        <div style="flex:1;min-width:0">
+          <span class="mo-name">${escHtml(r.emoji||'🍽')} ${escHtml(r.name)}</span>
+          <span class="mo-lief" style="color:#5b6fa8">${escHtml(r.category||'')} · ${r.portions||1} Portion${(r.portions||1)!==1?'en':''}</span>
+        </div>
+        <div class="mo-price" style="color:#3d4f8a">${priceStr}</div>
+      </div>`;
+    }).join('');
+  }
+  list.innerHTML=html;
+}
+
+function selectRecipeAsIngr(recipeId){
+  if(_mlPickerRowIdx===null)return;
+  const r=recipes.find(x=>x.id===recipeId);
+  if(!r)return;
+  // Set name, recipeRef, clear mlId, set unit to Portion
+  _ingrRows[_mlPickerRowIdx].name=r.name;
+  _ingrRows[_mlPickerRowIdx].recipeRef=recipeId;
+  _ingrRows[_mlPickerRowIdx].mlId=null;
+  _ingrRows[_mlPickerRowIdx].unit='Portion';
+  if(!_ingrRows[_mlPickerRowIdx].amount) _ingrRows[_mlPickerRowIdx].amount='1';
+  document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove());
+  const _focusIdx=_mlPickerRowIdx;
+  _mlPickerRowIdx=null;
+  renderIngrRows();
+  setTimeout(()=>{
+    const row=document.getElementById('ir-'+(_focusIdx??0));
+    if(row)row.querySelector('input[type=number]')?.focus();
+  },50);
+  scheduleDraft();
+}
+
+function selectRecipeAsIngr(recipeId){
+  if(_mlPickerRowIdx===null)return;
+  const r=recipes.find(x=>x.id===recipeId);
+  if(!r)return;
+  _ingrRows[_mlPickerRowIdx].name=r.name;
+  _ingrRows[_mlPickerRowIdx].recipeRef=recipeId;
+  _ingrRows[_mlPickerRowIdx].mlId=null;
+  _ingrRows[_mlPickerRowIdx].unit='Portion';
+  if(!_ingrRows[_mlPickerRowIdx].amount) _ingrRows[_mlPickerRowIdx].amount='1';
+  document.querySelectorAll('.ml-picker-overlay').forEach(e=>e.remove());
+  const _focusIdx=_mlPickerRowIdx;
+  _mlPickerRowIdx=null;
+  renderIngrRows();
+  setTimeout(()=>{
+    const row=document.getElementById('ir-'+(_focusIdx??0));
+    if(row)row.querySelector('input[type=number]')?.focus();
+  },50);
+  scheduleDraft();
 }
 
 function selectMlArticle(mlId){
   if(_mlPickerRowIdx===null)return;
   _ingrRows[_mlPickerRowIdx].mlId=mlId;
+  _ingrRows[_mlPickerRowIdx].recipeRef=null; // clear any previous recipe link
   if(mlId){
     const art=mlById(mlId);
     if(art){
@@ -2801,6 +2872,7 @@ function getKalk(id){
       const art=resolveArticleForIngr(i);
       k.zutaten.push({
         name:i.name, mlId:art?.id||null,
+        recipeRef:i.recipeRef||null, // Rezept-Referenz erhalten
         vpePreis:art?.preis??0,
         vpeGroesse:art?convertVpeToRecipeUnit(art.vpe,art.einheit,i.unit||'g'):(1000),
         einheit:normUnit(i.unit)||normUnit(art?.einheit)||'g', // Rezepteinheit hat Vorrang
@@ -2835,15 +2907,29 @@ function computeKalk(k){
   const rezBasis=parseInt(k.rezeptPortionen)||1;
   // per ingredient costs
   const zutaten=(k.zutaten||[]).map(z=>{
-    const preis=parseFloat(z.vpePreis)||0;
-    const vpeG=parseFloat(z.vpeGroesse)||1;
     const rezGGesamt=parseFloat(z.rezeptGroesse)||0;
     const rezG=rezGGesamt/rezBasis; // auf 1 Portion normieren
+
     let klEinheit=0;
-    // Immer Preis / VPE-Größe — egal ob Gewicht, Volumen oder Stück
-    klEinheit=vpeG>0?preis/vpeG:0;
+    let isRecipeRef=false;
+
+    if(z.recipeRef){
+      // Rezept als Zutat: Warenkosten/Portion des verknüpften Rezepts
+      isRecipeRef=true;
+      const refKalk=kalkLoad(z.recipeRef);
+      if(refKalk){
+        const refC=computeKalk(refKalk); // rekursiv — keine Kreisreferenz möglich da Rezepte eigene IDs
+        klEinheit=refC.warenkosten; // Kosten pro 1 Portion des Beilagen-Rezepts
+      }
+    } else {
+      // Artikel aus Stammdaten oder manueller Preis
+      const preis=parseFloat(z.vpePreis)||0;
+      const vpeG=parseFloat(z.vpeGroesse)||1;
+      klEinheit=vpeG>0?preis/vpeG:0;
+    }
+
     const rezeptKosten=klEinheit*rezG;
-    return{...z,klEinheit,rezeptKosten,rezG}; // rezG = normierte Portionsmenge
+    return{...z,klEinheit,rezeptKosten,rezG,isRecipeRef}; // rezG = normierte Portionsmenge
   });
 
   const rezeptKostenGesamt=zutaten.reduce((s,z)=>s+z.rezeptKosten,0);
@@ -3047,8 +3133,10 @@ function renderKalk(id){
               ${['g','kg','ml','l','EL','TL','St','Schale','Portion','Bund'].map(u=>`<option ${z.einheit===u?'selected':''}>` + u + '</option>').join('')}
             </select>
           </td>
-          <td><input type="number" step="0.01" min="0" class="num-inp" value="${z.vpePreis||''}" placeholder="0.00" onchange="kalkZutatSet(${id},${i},'vpePreis',this.value)" style="${vpeStyle}"/></td>
-          <td><input type="number" step="1" min="0" class="num-inp" value="${z.vpeGroesse||''}" placeholder="1000" onchange="kalkZutatSet(${id},${i},'vpeGroesse',this.value)" style="${vpeStyle}"/></td>
+          ${z.recipeRef
+            ?`<td colspan="2" style="padding:4px 8px;font-size:.75rem;color:#3d4f8a;background:#eef0f8;text-align:center">Preis aus Kalkulation</td>`
+            :`<td><input type="number" step="0.01" min="0" class="num-inp" value="${z.vpePreis||''}" placeholder="0.00" onchange="kalkZutatSet(${id},${i},'vpePreis',this.value)" style="${vpeStyle}"/></td>
+          <td><input type="number" step="1" min="0" class="num-inp" value="${z.vpeGroesse||''}" placeholder="1000" onchange="kalkZutatSet(${id},${i},'vpeGroesse',this.value)" style="${vpeStyle}"/></td>`}
           <td class="ki-calc num">${z.klEinheit?z.klEinheit.toFixed(5):'-'}</td>
           <td class="ki-calc num">${fmt(z.rezeptKosten)}</td>
         </tr>`;
