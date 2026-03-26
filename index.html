@@ -4230,8 +4230,12 @@ function buildShoppingList(){
               if(!existing.rezepte.includes(r.name))existing.rezepte.push(r.name);
             } else {
               const article=resolveArticleForIngr(ing);
+              // Kalk-Zutat für korrekte vpeGroesse (bereits in Rezepteinheit umgerechnet)
+              const kalkEntry=(getKalk(recipe.id)?.zutaten||[]).find(z=>
+                z.name&&ing.name&&z.name.trim().toLowerCase()===ing.name.trim().toLowerCase()
+              );
               map.set(mapKey,{
-                mapKey,mlId,article,
+                mapKey,mlId,article,kalkEntry,
                 name:article?article.name:ing.name,
                 unit:ing.unit,
                 totalAmount:scaledAmt,
@@ -4295,12 +4299,19 @@ function renderEinkaufsliste(){
       let kostenInfo='';
       if(item.article?.vpe&&item.article?.preis){
         // VPE in Rezepteinheit umrechnen (z.B. article.vpe=5 kg → 5000 g wenn item.unit='g')
-        const artVpeInRezUnit=convertVpeToRecipeUnit(item.article.vpe||1, item.article.einheit, item.unit);
+        // Kalk-vpeGroesse verwenden wenn vorhanden (bereits in Rezepteinheit, zuverlässiger)
+        const kalkVpe=item.kalkEntry?.vpeGroesse;
+        const artVpeInRezUnit=kalkVpe>0
+          ? kalkVpe
+          : convertVpeToRecipeUnit(item.article.vpe||1, item.article.einheit, item.unit);
         const vpeNeeded=artVpeInRezUnit>0?Math.ceil(item.totalAmount/artVpeInRezUnit):1;
         const kosten=vpeNeeded*item.article.preis;
         liefKosten+=kosten;
         totalKosten+=kosten;
-        vpeInfo=`${vpeNeeded} × ${item.article.vpe} ${item.article.einheit}`;
+        // Anzeige: Original-VPE aus Artikelstamm (lesbar)
+        const dispVpe=item.article.vpe||artVpeInRezUnit;
+        const dispUnit=item.article.einheit||item.unit||'';
+        vpeInfo=`${vpeNeeded} × ${dispVpe} ${dispUnit}`;
         kostenInfo=`${kosten.toFixed(2)} €`;
       }
       const artNr=item.article?.artNr?`<div class="eink-artnr">${escHtml(item.article.artNr)}</div>`:'';
