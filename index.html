@@ -429,6 +429,7 @@
     .ml-body{padding:20px;flex:1;overflow-y:auto;min-height:0}
     .ml-table{width:100%;border-collapse:collapse;font-size:.84rem}
     .ml-table th{background:var(--ink);color:#f4f1eb;padding:9px 10px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2}
+    .ml-table thead tr:hover th{background:var(--ink);color:#f4f1eb} /* Titelzeile immer dunkel */
     .ml-table th.r,.ml-table td.r{text-align:right}
     .ml-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
     .ml-table tbody tr:hover td{background:#f0ebe2;color:var(--ink)}
@@ -481,8 +482,8 @@
 
     /* INLINE EDITING + SORT */
     .ml-table th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
-    .ml-table th.sortable:hover{background:rgba(255,255,255,.15);cursor:pointer}
-    .ml-table th .sort-arrow{margin-left:4px;opacity:.4;font-size:.8em}
+    .ml-table th.sortable:hover{background:rgba(255,255,255,.2);color:#fff;cursor:pointer}
+    .ml-table th .sort-arrow{margin-left:4px;opacity:.5;font-size:.8em}
     .ml-table th.sort-asc .sort-arrow::after{content:'▲';opacity:1}
     .ml-table th.sort-desc .sort-arrow::after{content:'▼';opacity:1}
     .ml-table th:not(.sort-asc):not(.sort-desc) .sort-arrow::after{content:'⇅'}
