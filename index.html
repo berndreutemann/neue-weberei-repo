@@ -431,9 +431,14 @@
     .ml-table th{background:var(--ink);color:#f4f1eb;padding:9px 10px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2}
     .ml-table th.r,.ml-table td.r{text-align:right}
     .ml-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
-    .ml-table tr:hover td{background:var(--surface2);color:var(--ink)}
+    .ml-table tr:hover td{background:#e6dfd3;color:var(--ink)}
     .ml-table tr:hover td input,.ml-table tr:hover td select{background:#fff;color:var(--ink);border-color:var(--border)}
-    .ml-table tr:hover td .ml-lieferant,.ml-table tr:hover td .ml-artnr,.ml-table tr:hover td .ml-ie{color:var(--ink2)}
+    .ml-table tr:hover td .ml-lieferant,.ml-table tr:hover td .ml-artnr,.ml-table tr:hover td .ml-ie,.ml-table tr:hover td .ml-einheit{color:var(--ink2)}
+    .ml-table tr:hover td .ml-alt{color:var(--amber)}
+    .ml-table tr:hover td .ml-badge.inactive{background:#d8d0c4;color:var(--ink2);border-color:#c8c0b4}
+    .ml-table tr:hover td .ml-badge.active{background:var(--green-l);color:var(--green)}
+    .ml-table tr:hover td .ml-toggle-track{background:#c8c0b4}
+    .ml-table tr:hover td input:checked~.ml-toggle-track{background:var(--green)}
     .ml-table tr.ml-inactive td{opacity:.45}
     .ml-lieferant{font-size:.72rem;color:var(--ink3);white-space:nowrap}
     .ml-artnr{font-size:.72rem;color:var(--ink3);font-family:monospace}
@@ -1231,7 +1236,7 @@ async function loadMutterliste(){
   const {data,error}=await _sb.from('articles').select('*').order('lieferant');
   if(error){console.error('Artikel laden:', error);return;}
   mutterliste=(data||[]).map(a=>({...a.data, id:a.id, _dbId:a.id}));
-  mutterliste=mutterliste.map(a=>({...a,id:Math.round(a.id)}));
+  mutterliste=mutterliste.map(a=>({...a,id:Math.round(a.id),lieferant:normLieferant(a.lieferant||a.data?.lieferant||'')}));
 }
 
 async function loadCats(){
@@ -2831,6 +2836,16 @@ function normUnit(u){
   return map[u.trim()]||u.trim();
 }
 
+// Normalize supplier names — canonical form, case-insensitive
+function normLieferant(s){
+  if(!s) return s;
+  const t=s.trim();
+  // exact-match normalizations (add more as needed)
+  const canon={'metro':'METRO','Metro':'METRO','METRO':'METRO',
+               'aro':'ARO','Aro':'ARO','ARO':'ARO'};
+  return canon[t]||t;
+}
+
 // Convert VPE size from article unit to recipe unit
 // e.g. art.vpe=1, art.einheit='kg', recipe.unit='g' → returns 1000
 function convertVpeToRecipeUnit(vpe, artEinheit, rezEinheit){
@@ -3381,7 +3396,7 @@ async function quickSaveMl(){
   const lief=(document.getElementById('qLief')?.value||'').trim();
   const data={
     id: Date.now()+Math.floor(Math.random()*997),
-    lieferant: lief,
+    lieferant: normLieferant(lief),
     artNr:  (document.getElementById('qNr')?.value||'').trim(),
     name,
     preis:  parseFloat(document.getElementById('qPreis')?.value)||null,
@@ -3423,7 +3438,7 @@ function qShowFeedback(msg, isError=false){
 function qUpdateLiefSuggestions(){
   const dl=document.getElementById('qLiefList');
   if(!dl) return;
-  const liefs=[...new Set(mutterliste.map(a=>a.lieferant).filter(Boolean))].sort();
+  const liefs=[...new Set(mutterliste.map(a=>normLieferant(a.lieferant)).filter(Boolean))].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase(),'de'));
   dl.innerHTML=liefs.map(l=>`<option value="${escAttr(l)}">`).join('');
 }
 
@@ -3517,7 +3532,7 @@ function renderMutterliste(){
   const status=document.getElementById('mlStatusFilter')?.value||'';
 
   // Update lieferant filter options
-  const liefs=[...new Set(mutterliste.map(a=>a.lieferant).filter(Boolean))].sort();
+  const liefs=[...new Set(mutterliste.map(a=>normLieferant(a.lieferant)).filter(Boolean))].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase(),'de'));
   const sel=document.getElementById('mlLiefFilter');
   const curVal=sel.value;
   sel.innerHTML='<option value="">Alle Lieferanten</option>'+liefs.map(l=>`<option ${l===curVal?'selected':''}>${l}</option>`).join('');
@@ -3532,10 +3547,12 @@ function renderMutterliste(){
   const {col,dir}=mlSort;
   items.sort((a,b)=>{
     let av=a[col]??'',bv=b[col]??'';
+    // Normalize lieferant for consistent sorting (METRO/Metro → METRO)
+    if(col==='lieferant'){av=normLieferant(String(av));bv=normLieferant(String(bv));}
     if(typeof av==='boolean') av=av?0:1;
     if(typeof bv==='boolean') bv=bv?0:1;
     if(typeof av==='number'&&typeof bv==='number') return dir==='asc'?av-bv:bv-av;
-    return dir==='asc'?String(av).localeCompare(String(bv),'de'):String(bv).localeCompare(String(av),'de');
+    return dir==='asc'?String(av).toLowerCase().localeCompare(String(bv).toLowerCase(),'de'):String(bv).toLowerCase().localeCompare(String(av).toLowerCase(),'de');
   });
 
   const wrap=document.getElementById('mlTableWrap');
@@ -3905,7 +3922,7 @@ function parseMetroText(text){
     const name=(clean||rawName).replace(/\s+/g,' ').trim();
     if(name.length<2) continue;
     const hinweis=rawName!==name?rawName:'';
-    items.push({artNr,name,preis:einzelpreis,vpe,einheit,hinweis,lieferant:'METRO'});
+    items.push({artNr,name,preis:einzelpreis,vpe,einheit,hinweis,lieferant:'METRO'}); // already canonical
   }
 
   // Deduplicate by artNr
@@ -4220,19 +4237,20 @@ function renderEinkaufsliste(){
     sumBar.style.display='none';return;
   }
 
-  // Group by Lieferant
+  // Group by Lieferant — normalisiert (METRO/Metro → METRO)
   const byLief=new Map();
   items.forEach(item=>{
-    const lief=item.article?.lieferant||'Sonstiges / Manuell';
+    const raw=item.article?.lieferant||'';
+    const lief=raw?normLieferant(raw):'Sonstiges / Manuell';
     if(!byLief.has(lief))byLief.set(lief,[]);
     byLief.get(lief).push(item);
   });
 
-  // Sort lieferanten
+  // Sort lieferanten case-insensitive, Sonstiges always last
   const sortedLiefs=[...byLief.keys()].sort((a,b)=>{
     if(a==='Sonstiges / Manuell')return 1;
     if(b==='Sonstiges / Manuell')return -1;
-    return a.localeCompare(b);
+    return a.toLowerCase().localeCompare(b.toLowerCase(),'de');
   });
 
   let totalKosten=0;
