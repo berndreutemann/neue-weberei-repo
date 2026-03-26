@@ -431,14 +431,14 @@
     .ml-table th{background:var(--ink);color:#f4f1eb;padding:9px 10px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2}
     .ml-table th.r,.ml-table td.r{text-align:right}
     .ml-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
-    .ml-table tr:hover td{background:#e6dfd3;color:var(--ink)}
-    .ml-table tr:hover td input,.ml-table tr:hover td select{background:#fff;color:var(--ink);border-color:var(--border)}
-    .ml-table tr:hover td .ml-lieferant,.ml-table tr:hover td .ml-artnr,.ml-table tr:hover td .ml-ie,.ml-table tr:hover td .ml-einheit{color:var(--ink2)}
-    .ml-table tr:hover td .ml-alt{color:var(--amber)}
-    .ml-table tr:hover td .ml-badge.inactive{background:#d8d0c4;color:var(--ink2);border-color:#c8c0b4}
-    .ml-table tr:hover td .ml-badge.active{background:var(--green-l);color:var(--green)}
-    .ml-table tr:hover td .ml-toggle-track{background:#c8c0b4}
-    .ml-table tr:hover td input:checked~.ml-toggle-track{background:var(--green)}
+    .ml-table tbody tr:hover td{background:#f0ebe2;color:var(--ink)}
+    .ml-table tbody tr:hover td input,.ml-table tbody tr:hover td select{background:#fff;color:var(--ink);border-color:var(--border)}
+    .ml-table tbody tr:hover td .ml-lieferant,.ml-table tbody tr:hover td .ml-artnr,.ml-table tbody tr:hover td .ml-ie,.ml-table tbody tr:hover td .ml-einheit{color:var(--ink2)}
+    .ml-table tbody tr:hover td .ml-alt{background:#fff3cd;color:#7a5500;border-radius:3px;padding:1px 4px}
+    .ml-table tbody tr:hover td .ml-badge.inactive{background:#d8d0c4;color:var(--ink2);border-color:#c8c0b4}
+    .ml-table tbody tr:hover td .ml-badge.active{background:var(--green-l);color:var(--green)}
+    .ml-table tbody tr:hover td .ml-toggle-track{background:#c8c0b4}
+    .ml-table tbody tr:hover td input:checked~.ml-toggle-track{background:var(--green)}
     .ml-table tr.ml-inactive td{opacity:.45}
     .ml-lieferant{font-size:.72rem;color:var(--ink3);white-space:nowrap}
     .ml-artnr{font-size:.72rem;color:var(--ink3);font-family:monospace}
@@ -481,7 +481,7 @@
 
     /* INLINE EDITING + SORT */
     .ml-table th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
-    .ml-table th.sortable:hover{background:rgba(255,255,255,.08)}
+    .ml-table th.sortable:hover{background:rgba(255,255,255,.15);cursor:pointer}
     .ml-table th .sort-arrow{margin-left:4px;opacity:.4;font-size:.8em}
     .ml-table th.sort-asc .sort-arrow::after{content:'▲';opacity:1}
     .ml-table th.sort-desc .sort-arrow::after{content:'▼';opacity:1}
