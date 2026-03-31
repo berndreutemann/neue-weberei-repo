@@ -393,10 +393,22 @@
     .cat-add-row input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:.83rem;color:var(--ink);background:var(--bg);outline:none}
     .cat-add-row input:focus{border-color:var(--accent)}
     .cat-emoji-pick{width:44px;padding:6px;border:1px solid var(--border);border-radius:var(--r);font-size:1rem;text-align:center;background:var(--bg);cursor:pointer}
+    /* ── IMAGE CROP MODAL ── */
+    #cropModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9000;align-items:center;justify-content:center}
+    #cropModal.open{display:flex}
+    .crop-box{background:#fff;border-radius:8px;width:min(680px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+    .crop-header{padding:14px 18px;border-bottom:1px solid #ddd;display:flex;align-items:center;justify-content:space-between}
+    .crop-header h3{font-family:'Playfair Display',serif;font-size:1rem;font-weight:400}
+    .crop-canvas-wrap{flex:1;overflow:hidden;position:relative;background:#111;display:flex;align-items:center;justify-content:center;min-height:300px}
+    #cropCanvas{max-width:100%;max-height:60vh;display:block;cursor:crosshair;touch-action:none}
+    .crop-controls{padding:12px 18px;border-top:1px solid #ddd;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .crop-hint{font-size:.75rem;color:#888;flex:1}
     /* Draft indicator */
-    #draftBadge{display:none;font-size:.72rem;color:var(--amber);background:var(--amber-l);border:1px solid #e8d48a;border-radius:10px;padding:2px 10px;margin-left:8px}
+    #draftBadge{display:none;font-size:.72rem;color:var(--amber);background:var(--amber-l);border:1px solid #e8d48a;border-radius:10px;padding:2px 10px;margin-left:8px;vertical-align:middle}
     #draftRestoreBar{display:none;background:var(--amber-l);border:1px solid #e8d48a;border-radius:var(--r);padding:9px 14px;margin-bottom:12px;font-size:.82rem;color:var(--amber);display:flex;align-items:center;gap:10px}
+
     /* Draft indicator */
+    #draftBadge{display:none;font-size:.72rem;color:var(--amber);background:var(--amber-l);border:1px solid #e8d48a;border-radius:10px;padding:2px 10px;margin-left:8px;vertical-align:middle}
     #draftBadge{display:none;font-size:.72rem;color:var(--amber);background:var(--amber-l);border:1px solid #e8d48a;border-radius:10px;padding:2px 10px;margin-left:8px;vertical-align:middle}
     #draftRestoreBar{background:var(--amber-l);border:1px solid #e8d48a;border-radius:var(--r);padding:9px 14px;margin-bottom:12px;font-size:.82rem;color:var(--amber);display:flex;align-items:center;gap:10px}
     /* fCat new-category input */
@@ -791,7 +803,21 @@
         </div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Portionen</label><input id="fPort" type="number" min="1" value="4"/></div>
+        <div class="fg"><label>Portionen</label><input id="fPort" type="number" min="1" value="4" oninput="scheduleDraft()"/></div>
+        <div class="fg"><label>Ausbeute gesamt <span style="font-size:.72rem;font-weight:400;color:var(--ink3)">(z.B. 2 kg, 3 l — für Komponenten)</span></label>
+          <div style="display:flex;gap:6px">
+            <input id="fAusbeuteMenge" type="number" min="0" step="0.1" placeholder="–" style="flex:1" oninput="scheduleDraft()"/>
+            <select id="fAusbeute_Einheit" style="width:70px">
+              <option value="">–</option>
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+              <option value="ml">ml</option>
+              <option value="l">l</option>
+              <option value="St">St</option>
+            </select>
+          </div>
+        </div>
+      </div>
         <div class="fg"><label>Aufwand</label>
           <select id="fTime">
             <option value="">– nicht angegeben –</option>
@@ -840,6 +866,25 @@
       <button class="btn-s" onclick="maybeCloseRecipeModal()">Abbrechen</button>
       <button class="btn-s" id="btnGoKalk" style="display:none;margin-right:auto" onclick="goToKalkFromModal()" title="Zur Kalkulation wechseln">🧮 Kalkulation</button>
       <button class="btn-s p" onclick="saveRecipe()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- CROP MODAL -->
+<div id="cropModal">
+  <div class="crop-box">
+    <div class="crop-header">
+      <h3>Bildausschnitt wählen</h3>
+      <button class="close-x" onclick="cropCancel()">✕</button>
+    </div>
+    <div class="crop-canvas-wrap">
+      <canvas id="cropCanvas"></canvas>
+    </div>
+    <div class="crop-controls">
+      <span class="crop-hint">Ausschnitt mit Maus/Finger ziehen und Größe anpassen</span>
+      <button class="btn-s" onclick="cropReset()">↺ Zurücksetzen</button>
+      <button class="btn-s" onclick="cropCancel()">Abbrechen</button>
+      <button class="btn-s p" onclick="cropConfirm()">✓ Ausschnitt übernehmen</button>
     </div>
   </div>
 </div>
@@ -2019,15 +2064,171 @@ function renderImgArea(){
       </div>`;
   }
 }
-function pickImg(e){const f=e.target.files[0];if(!f)return;compressImage(f,d=>{_pendingImg=d;_imgCleared=false;renderImgArea();});}
+function pickImg(e){const f=e.target.files[0];if(!f)return;openCropModal(f);}
 function clearImg(){_pendingImg=null;_imgCleared=true;renderImgArea();}
 function dzOver(e){e.preventDefault();document.getElementById('dzZone')?.classList.add('drag');}
 function dzLeave(){document.getElementById('dzZone')?.classList.remove('drag');}
 function dzDrop(e){
   e.preventDefault();document.getElementById('dzZone')?.classList.remove('drag');
   const f=e.dataTransfer.files[0];if(!f||!f.type.startsWith('image/'))return;
-  compressImage(f,d=>{_pendingImg=d;_imgCleared=false;renderImgArea();});
+  openCropModal(f);
 }
+
+/* ═══════════════════════════════════════════════════════
+   IMAGE CROP
+═══════════════════════════════════════════════════════ */
+let _cropImg=null,_cropSel={x:0,y:0,w:0,h:0},_cropDrag=null,_cropHandle=null;
+let _cropCtx=null,_cropScale=1;
+
+function openCropModal(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      _cropImg=img;
+      const modal=document.getElementById('cropModal');
+      modal.classList.add('open');
+      requestAnimationFrame(()=>cropInit());
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function cropInit(){
+  const canvas=document.getElementById('cropCanvas');
+  const wrap=canvas.parentElement;
+  const maxW=wrap.clientWidth||640;
+  const maxH=Math.min(window.innerHeight*0.58,480);
+  _cropScale=Math.min(maxW/_cropImg.naturalWidth,maxH/_cropImg.naturalHeight,1);
+  canvas.width=Math.round(_cropImg.naturalWidth*_cropScale);
+  canvas.height=Math.round(_cropImg.naturalHeight*_cropScale);
+  _cropCtx=canvas.getContext('2d');
+  cropReset();
+  cropDraw();
+  // Events
+  canvas.onmousedown=cropMD;canvas.onmousemove=cropMM;canvas.onmouseup=canvas.onmouseleave=cropMU;
+  canvas.ontouchstart=e=>{e.preventDefault();cropMD(e.touches[0]);};
+  canvas.ontouchmove=e=>{e.preventDefault();cropMM(e.touches[0]);};
+  canvas.ontouchend=cropMU;
+}
+
+function cropReset(){
+  const c=document.getElementById('cropCanvas');
+  // Default: center square crop (3:2 landscape)
+  const w=c.width,h=c.height;
+  const selW=Math.min(w,h*1.5);
+  const selH=selW/1.5;
+  _cropSel={x:(w-selW)/2,y:(h-selH)/2,w:selW,h:selH};
+  cropDraw();
+}
+
+function cropDraw(){
+  const c=document.getElementById('cropCanvas');
+  if(!_cropCtx||!_cropImg) return;
+  const ctx=_cropCtx;
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.drawImage(_cropImg,0,0,c.width,c.height);
+  // Dim outside
+  ctx.fillStyle='rgba(0,0,0,.55)';
+  ctx.fillRect(0,0,c.width,c.height);
+  // Reveal crop area
+  ctx.clearRect(_cropSel.x,_cropSel.y,_cropSel.w,_cropSel.h);
+  ctx.drawImage(_cropImg,
+    _cropSel.x/_cropScale,_cropSel.y/_cropScale,
+    _cropSel.w/_cropScale,_cropSel.h/_cropScale,
+    _cropSel.x,_cropSel.y,_cropSel.w,_cropSel.h);
+  // Border
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;
+  ctx.strokeRect(_cropSel.x,_cropSel.y,_cropSel.w,_cropSel.h);
+  // Rule-of-thirds grid
+  ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;
+  for(let i=1;i<3;i++){
+    const x=_cropSel.x+_cropSel.w*i/3,y=_cropSel.y+_cropSel.h*i/3;
+    ctx.beginPath();ctx.moveTo(x,_cropSel.y);ctx.lineTo(x,_cropSel.y+_cropSel.h);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(_cropSel.x,y);ctx.lineTo(_cropSel.x+_cropSel.w,y);ctx.stroke();
+  }
+  // Corner handles
+  const hs=8;ctx.fillStyle='#fff';
+  [[0,0],[1,0],[0,1],[1,1]].forEach(([hx,hy])=>{
+    ctx.fillRect(_cropSel.x+hx*_cropSel.w-hs/2,_cropSel.y+hy*_cropSel.h-hs/2,hs,hs);
+  });
+}
+
+function cropPos(e){
+  const c=document.getElementById('cropCanvas');
+  const r=c.getBoundingClientRect();
+  return{x:(e.clientX-r.left)*(c.width/r.width),y:(e.clientY-r.top)*(c.height/r.height)};
+}
+
+function cropMD(e){
+  const p=cropPos(e);
+  const hs=12,s=_cropSel;
+  // Check corner handles
+  const corners=[[0,0,'nw'],[1,0,'ne'],[0,1,'sw'],[1,1,'se']];
+  for(const[hx,hy,n]of corners){
+    if(Math.abs(p.x-(s.x+hx*s.w))<hs&&Math.abs(p.y-(s.y+hy*s.h))<hs){
+      _cropHandle=n;_cropDrag={sx:p.x,sy:p.y,sel:{...s}};return;
+    }
+  }
+  // Inside selection → move
+  if(p.x>s.x&&p.x<s.x+s.w&&p.y>s.y&&p.y<s.y+s.h){
+    _cropHandle='move';_cropDrag={sx:p.x,sy:p.y,sel:{...s}};return;
+  }
+  // Outside → new selection
+  _cropHandle='new';_cropDrag={sx:p.x,sy:p.y,sel:{...s}};
+  _cropSel={x:p.x,y:p.y,w:0,h:0};
+}
+
+function cropMM(e){
+  if(!_cropDrag) return;
+  const p=cropPos(e);
+  const d={dx:p.x-_cropDrag.sx,dy:p.y-_cropDrag.sy};
+  const c=document.getElementById('cropCanvas');
+  const cw=c.width,ch=c.height;
+  const os=_cropDrag.sel;
+  if(_cropHandle==='move'){
+    _cropSel.x=Math.max(0,Math.min(cw-os.w,os.x+d.dx));
+    _cropSel.y=Math.max(0,Math.min(ch-os.h,os.y+d.dy));
+  } else if(_cropHandle==='new'){
+    const x0=_cropDrag.sx,y0=_cropDrag.sy;
+    _cropSel.x=Math.max(0,Math.min(x0,p.x));
+    _cropSel.y=Math.max(0,Math.min(y0,p.y));
+    _cropSel.w=Math.min(cw-_cropSel.x,Math.abs(p.x-x0));
+    _cropSel.h=Math.min(ch-_cropSel.y,Math.abs(p.y-y0));
+  } else if(_cropHandle){
+    const n=_cropHandle;
+    let{x,y,w,h}=os;
+    if(n.includes('e')) w=Math.max(20,Math.min(cw-x,os.w+d.dx));
+    if(n.includes('s')) h=Math.max(20,Math.min(ch-y,os.h+d.dy));
+    if(n.includes('w')){const nx=Math.max(0,Math.min(os.x+os.w-20,os.x+d.dx));w=os.x+os.w-nx;x=nx;}
+    if(n.includes('n')){const ny=Math.max(0,Math.min(os.y+os.h-20,os.y+d.dy));h=os.y+os.h-ny;y=ny;}
+    _cropSel={x,y,w,h};
+  }
+  cropDraw();
+}
+
+function cropMU(){_cropDrag=null;_cropHandle=null;}
+
+function cropConfirm(){
+  if(!_cropImg||_cropSel.w<10||_cropSel.h<10){cropCancel();return;}
+  const out=document.createElement('canvas');
+  const MAX=900;
+  let ow=_cropSel.w/_cropScale,oh=_cropSel.h/_cropScale;
+  if(ow>MAX){oh=Math.round(oh*MAX/ow);ow=MAX;}
+  if(oh>MAX){ow=Math.round(ow*MAX/oh);oh=MAX;}
+  out.width=Math.round(ow);out.height=Math.round(oh);
+  out.getContext('2d').drawImage(_cropImg,
+    _cropSel.x/_cropScale,_cropSel.y/_cropScale,
+    _cropSel.w/_cropScale,_cropSel.h/_cropScale,
+    0,0,out.width,out.height);
+  _pendingImg=out.toDataURL('image/jpeg',0.85);
+  _imgCleared=false;
+  document.getElementById('cropModal').classList.remove('open');
+  renderImgArea();
+}
+
+function cropCancel(){document.getElementById('cropModal').classList.remove('open');_cropImg=null;}
 
 /* ═══════ ADD/EDIT RECIPE ═══════ */
 function getCatEmoji(cat){return(cats.find(c=>c.name===cat)?.emoji)||'🍽';}
@@ -2042,6 +2243,8 @@ function collectModalData(){
     name:document.getElementById('fName').value,
     cat:document.getElementById('fCat').value,
     port:document.getElementById('fPort').value,
+    ausbeuteMenge:document.getElementById('fAusbeuteMenge').value,
+    ausbeute_einheit:document.getElementById('fAusbeute_einheit').value,
     time:document.getElementById('fTime').value,
     season:document.getElementById('fSeason').value,
     tags:document.getElementById('fTags').value,
@@ -2088,6 +2291,8 @@ function restoreRecipeDraft(){
   const d=JSON.parse(raw);
   document.getElementById('fName').value=d.name||'';
   document.getElementById('fPort').value=d.port||4;
+  document.getElementById('fAusbeuteMenge').value=d.ausbeuteMenge||'';
+  document.getElementById('fAusbeute_einheit').value=d.ausbeute_einheit||'';
   document.getElementById('fTime').value=d.time||'';
   document.getElementById('fSeason').value=d.season||'';
   document.getElementById('fTags').value=d.tags||'';
@@ -2184,6 +2389,7 @@ function openAddRecipe(){
   initIngrRows([]);
   populateFCat();document.getElementById('fCat').value='';document.getElementById('fCatNewWrap').style.display='none';document.getElementById('fSeason').value='';
   document.getElementById('fPort').value=4;document.getElementById('fTime').value='';document.getElementById('fCost').value='';
+  document.getElementById('fAusbeuteMenge').value='';document.getElementById('fAusbeute_einheit').value='';
   renderImgArea();
   showDraftBadge(false);
   // Check for saved draft
@@ -2199,6 +2405,8 @@ function editRecipe(id){
   document.getElementById('fName').value=r.name;
   populateFCat(r.category);document.getElementById('fCatNewWrap').style.display='none';
   document.getElementById('fPort').value=r.portions||4;
+  document.getElementById('fAusbeuteMenge').value=r.ausbeuteMenge||'';
+  document.getElementById('fAusbeute_einheit').value=r.ausbeute_einheit||'';
   document.getElementById('fTime').value=r.time||'';
   document.getElementById('fSeason').value=r.season||'';
   // Auto-fill cost from Kalkulation (always use computed value)
@@ -2235,6 +2443,8 @@ async function saveRecipe(){
   const ingrRows=collectIngrRows();
   const data={id,name,category:cat,
     portions:parseInt(document.getElementById('fPort').value)||4,
+    ausbeuteMenge:parseFloat(document.getElementById('fAusbeuteMenge').value)||null,
+    ausbeute_einheit:document.getElementById('fAusbeute_einheit').value||null,
     time:document.getElementById('fTime').value||null,
     season:document.getElementById('fSeason').value||null,
     cost:parseFloat(document.getElementById('fCost').value)||null,
@@ -4214,13 +4424,19 @@ function buildShoppingList(){
             );
             if(subRecipe){
               const amt=parseFloat(ing.amount)||0;
-              const ingUnit=(ing.unit||'').toLowerCase();
+              const ingUnit=normUnit(ing.unit||'');
+              const weightVol=['g','kg','ml','l'];
               let subFactor;
-              if(ingUnit==='portion'||ingUnit==='portionen'||ingUnit==='port.'||ingUnit==='st'||ingUnit===''||!ingUnit){
-                // Einheit = Portion/Stück: amt Portionen des Unterrezepts
-                subFactor=scaleFactor*(amt/(subRecipe.portions||1));
+              if(weightVol.includes(ingUnit)&&subRecipe.ausbeuteMenge&&subRecipe.ausbeute_einheit){
+                // Ausbeute bekannt: Menge in Rezepteinheit umrechnen
+                const ausbeuteInIngUnit=convertVpeToRecipeUnit(
+                  subRecipe.ausbeuteMenge, subRecipe.ausbeute_einheit, ingUnit
+                );
+                subFactor=ausbeuteInIngUnit>0
+                  ? scaleFactor*(amt/ausbeuteInIngUnit)
+                  : scaleFactor*(amt/(subRecipe.portions||1));
               } else {
-                // Gewichts-/Volumeneinheit: Verhältnis kann nicht aufgelöst werden → 1:1
+                // Keine Ausbeute hinterlegt oder Stückeinheit: Portionen-basiert
                 subFactor=scaleFactor*(amt/(subRecipe.portions||1));
               }
               collectIngredients(subRecipe, subFactor, depth+1);
