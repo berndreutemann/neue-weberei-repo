@@ -5148,7 +5148,11 @@ function printEinkaufsliste(){
 
   const weeksLabel=[...einkSelWeeks].map(w=>{
     const d=new Date(w);
-    return `KW ${getWeekNr(d)} (${d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})})`;
+    // ISO week number
+    const tmp=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+    tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7));
+    const kw=Math.ceil((((tmp-new Date(Date.UTC(tmp.getUTCFullYear(),0,1)))/86400000)+1)/7);
+    return `KW ${kw} (${d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})})`;
   }).join(', ');
 
   let tableRows='';
