@@ -3184,12 +3184,26 @@ function computeKalk(k){
     let isRecipeRef=false;
 
     if(z.recipeRef){
-      // Rezept als Zutat: Warenkosten/Portion des verknüpften Rezepts
+      // Rezept als Zutat: Warenkosten korrekt berechnen
       isRecipeRef=true;
+      const refRecipe=recipes.find(r=>r.id===z.recipeRef);
       const refKalk=kalkLoad(z.recipeRef);
       if(refKalk){
-        const refC=computeKalk(refKalk); // rekursiv — keine Kreisreferenz möglich da Rezepte eigene IDs
-        klEinheit=refC.warenkosten; // Kosten pro 1 Portion des Beilagen-Rezepts
+        const refC=computeKalk(refKalk);
+        const ingUnit=normUnit(z.einheit||'');
+        const weightVol=['g','kg','ml','l'];
+        if(weightVol.includes(ingUnit)&&refRecipe?.ausbeuteMenge&&refRecipe?.ausbeute_einheit){
+          // Ausbeute bekannt → Kosten pro Gramm/ml berechnen
+          const ausbeuteInIngUnit=convertVpeToRecipeUnit(
+            refRecipe.ausbeuteMenge, refRecipe.ausbeute_einheit, ingUnit
+          );
+          // refC.warenkosten = Kosten für 1 Portion — Gesamtausbeute = portionen × ausbeute_pro_portion
+          // Aber besser: warenkosten ist bereits pro Portion, Ausbeute ist Gesamtausbeute des Rezepts
+          klEinheit=ausbeuteInIngUnit>0?refC.warenkosten/(ausbeuteInIngUnit/(refKalk.portionen||1)):refC.warenkosten;
+        } else {
+          // Portionsbasiert: klEinheit = Kosten pro Portion, rezG = Anzahl Portionen
+          klEinheit=refC.warenkosten;
+        }
       }
     } else {
       // Artikel aus Stammdaten oder manueller Preis
