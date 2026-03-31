@@ -3098,6 +3098,12 @@ function getKalk(id){
       rezeptPortionen: r?.portions||1, // Basisportion des Rezepts — Divisor für Portionsnormierung
       schwund: stamm.schwund,
       zutaten: (r?.ingredients||[]).map(i=>{
+        // Prüfen ob Zutat ein anderes Rezept referenziert
+        const refId=i.recipeRef||(()=>{
+          const sr=recipes.find(sr=>sr.id!==id&&sr.name.trim().toLowerCase()===i.name.trim().toLowerCase());
+          return sr?sr.id:null;
+        })();
+        if(refId) return {name:i.name,recipeRef:refId,einheit:normUnit(i.unit)||'g',rezeptGroesse:parseFloat(i.amount)||0,mlId:null,vpePreis:0,vpeGroesse:0};
         const art=resolveArticleForIngr(i);
         return {
           name:i.name, mlId:art?.id||null,
@@ -3119,6 +3125,12 @@ function getKalk(id){
   // 1. Für jede Kalk-Zutat: Artikel-Verknüpfung + Menge aus Rezept aktualisieren
   k.zutaten.forEach(z=>{
     const recipeIngr=recipeIngrs.find(i=>i.name&&z.name&&i.name.trim().toLowerCase()===z.name.trim().toLowerCase());
+    // Auto-detect recipeRef: Zutat-Name entspricht einem anderen Rezept
+    if(!z.recipeRef){
+      const sr=recipes.find(sr=>sr.id!==id&&sr.name.trim().toLowerCase()===(z.name||'').trim().toLowerCase());
+      if(sr){z.recipeRef=sr.id;z.mlId=null;z.vpePreis=0;z.vpeGroesse=0;changed=true;}
+    }
+    if(z.recipeRef) return; // Rezept-Referenz: keine Artikel-Sync nötig
     const art=recipeIngr?resolveArticleForIngr(recipeIngr):mlByName(z.name);
     if(art){
       if(z.mlId!==art.id){z.mlId=art.id;changed=true;}
