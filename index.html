@@ -799,15 +799,15 @@
         <div id="imgArea"></div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Name *</label><input id="fName" placeholder="z.B. Tafelspitz" oninput="scheduleDraft()"/></div>
-        <div class="fg"><label>Kategorie *</label>
+        <div class="fg"><label for="fName">Name *</label><input id="fName" placeholder="z.B. Tafelspitz" oninput="scheduleDraft()"/></div>
+        <div class="fg"><label for="fCat">Kategorie *</label>
           <select id="fCat" onchange="onFCatChange(this)"></select>
           <div id="fCatNewWrap" style="display:none;margin-top:6px;display:none"><input id="fCatNew" placeholder="Neue Kategoriename …" style="width:100%"/><div style="display:flex;gap:6px;margin-top:4px"><input id="fCatNewEmoji" style="width:44px;text-align:center" placeholder="🍽" maxlength="2"/><button type="button" class="btn-s p" onclick="confirmNewCat()" style="flex:1">✓ Anlegen &amp; wählen</button><button type="button" class="btn-s" onclick="cancelNewCat()">✕</button></div></div>
         </div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Portionen</label><input id="fPort" type="number" min="1" value="4" oninput="scheduleDraft()"/></div>
-        <div class="fg"><label>Ausbeute gesamt <span style="font-size:.72rem;font-weight:400;color:var(--ink3)">(z.B. 2 kg, 3 l — für Komponenten)</span></label>
+        <div class="fg"><label for="fPort">Portionen</label><input id="fPort" type="number" min="1" value="4" oninput="scheduleDraft()"/></div>
+        <div class="fg"><label for="fAusbeuteMenge">Ausbeute gesamt <span style="font-size:.72rem;font-weight:400;color:var(--ink3)">(z.B. 2 kg, 3 l — für Komponenten)</span></label>
           <div style="display:flex;gap:6px">
             <input id="fAusbeuteMenge" type="number" min="0" step="0.1" placeholder="–" style="flex:1" oninput="scheduleDraft()"/>
             <select id="fAusbeute_einheit" style="width:70px">
@@ -822,7 +822,7 @@
         </div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Aufwand</label>
+        <div class="fg"><label for="fTime">Aufwand</label>
           <select id="fTime">
             <option value="">– nicht angegeben –</option>
             <option value="gering">🟢 Gering</option>
@@ -832,14 +832,14 @@
         </div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Jahreszeit</label>
+        <div class="fg"><label for="fSeason">Jahreszeit</label>
           <select id="fSeason"><option value="">–</option><option>Frühling</option><option>Sommer</option><option>Herbst</option><option>Winter</option><option>Ganzjährig</option></select>
         </div>
-        <div class="fg"><label>Kosten / Portion (€) <span style="font-size:.72rem;font-weight:400;color:var(--ink3)">(aus Kalkulation)</span></label><input id="fCost" type="number" step="0.01" min="0" placeholder="3.50" readonly style="background:var(--surface2);color:var(--ink2);cursor:default"/></div>
+        <div class="fg"><label for="fCost">Kosten / Portion (€) <span style="font-size:.72rem;font-weight:400;color:var(--ink3)">(aus Kalkulation)</span></label><input id="fCost" type="number" step="0.01" min="0" placeholder="3.50" readonly style="background:var(--surface2);color:var(--ink2);cursor:default"/></div>
       </div>
-      <div class="fg"><label>Tags (Komma getrennt)</label><input id="fTags" placeholder="vegetarisch, glutenfrei …"/></div>
-      <div class="fg"><label>Allergene (Komma getrennt)</label><input id="fAllergens" placeholder="Gluten, Laktose …"/></div>
-      <div class="fg"><label>Zutaten <span style="font-weight:400;color:var(--ink3)">(eine pro Zeile: Menge Einheit Name — oder aus Artikelstamm wählen)</span></label>
+      <div class="fg"><label for="fTags">Tags (Komma getrennt)</label><input id="fTags" placeholder="vegetarisch, glutenfrei …"/></div>
+      <div class="fg"><label for="fAllergens">Allergene (Komma getrennt)</label><input id="fAllergens" placeholder="Gluten, Laktose …"/></div>
+      <div class="fg"><label for="fIngrList">Zutaten <span style="font-weight:400;color:var(--ink3)">(eine pro Zeile: Menge Einheit Name — oder aus Artikelstamm wählen)</span></label>
         <div id="fIngrList" style="margin-bottom:6px"></div>
         <button type="button" class="btn-s" onclick="addIngrRow()" style="margin-bottom:6px">+ Zutat hinzufügen</button>
         <input type="hidden" id="fIngrData"/>
@@ -847,23 +847,23 @@
       <div class="fg"><label>Zubereitungsschritte (ein Schritt pro Zeile)</label>
         <textarea id="fSteps" rows="5" placeholder="Fleisch waschen …&#10;Zwiebeln dünsten …" oninput="scheduleDraft()"></textarea>
       </div>
-      <div class="fg"><label>Notizen</label><textarea id="fNotes" rows="2" placeholder="Hinweise für die Küche …"></textarea></div>
+      <div class="fg"><label for="fNotes">Notizen</label><textarea id="fNotes" rows="2" placeholder="Hinweise für die Küche …"></textarea></div>
       <div class="form-section-head">🥦 Nährwerte pro Portion</div>
       <div class="fr">
-        <div class="fg"><label>Kalorien (kcal)</label><input id="nwKcal" type="number" min="0" step="1" placeholder="420"/></div>
-        <div class="fg"><label>Eiweiß (g)</label><input id="nwProtein" type="number" min="0" step="0.1" placeholder="28"/></div>
+        <div class="fg"><label for="nwKcal">Kalorien (kcal)</label><input id="nwKcal" type="number" min="0" step="1" placeholder="420"/></div>
+        <div class="fg"><label for="nwProtein">Eiweiß (g)</label><input id="nwProtein" type="number" min="0" step="0.1" placeholder="28"/></div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Kohlenhydrate (g)</label><input id="nwCarbs" type="number" min="0" step="0.1" placeholder="35"/></div>
-        <div class="fg"><label>davon Zucker (g)</label><input id="nwSugar" type="number" min="0" step="0.1" placeholder="4"/></div>
+        <div class="fg"><label for="nwCarbs">Kohlenhydrate (g)</label><input id="nwCarbs" type="number" min="0" step="0.1" placeholder="35"/></div>
+        <div class="fg"><label for="nwSugar">davon Zucker (g)</label><input id="nwSugar" type="number" min="0" step="0.1" placeholder="4"/></div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Fett (g)</label><input id="nwFat" type="number" min="0" step="0.1" placeholder="18"/></div>
-        <div class="fg"><label>davon gesättigt (g)</label><input id="nwSatFat" type="number" min="0" step="0.1" placeholder="7"/></div>
+        <div class="fg"><label for="nwFat">Fett (g)</label><input id="nwFat" type="number" min="0" step="0.1" placeholder="18"/></div>
+        <div class="fg"><label for="nwSatFat">davon gesättigt (g)</label><input id="nwSatFat" type="number" min="0" step="0.1" placeholder="7"/></div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Ballaststoffe (g)</label><input id="nwFiber" type="number" min="0" step="0.1" placeholder="3"/></div>
-        <div class="fg"><label>Salz (g)</label><input id="nwSalt" type="number" min="0" step="0.01" placeholder="1.2"/></div>
+        <div class="fg"><label for="nwFiber">Ballaststoffe (g)</label><input id="nwFiber" type="number" min="0" step="0.1" placeholder="3"/></div>
+        <div class="fg"><label for="nwSalt">Salz (g)</label><input id="nwSalt" type="number" min="0" step="0.01" placeholder="1.2"/></div>
       </div>
     </div>
     <div class="modal-f">
@@ -937,19 +937,19 @@
       <div class="stamm-title">Parameter</div>
       <div class="stamm-grid">
         <div class="fg">
-          <label>Mehrwertsteuer (%)</label>
+          <label for="pMwst">Mehrwertsteuer (%)</label>
           <div class="kalk-param"><div class="unit-wrap"><input type="number" id="pMwst" step="0.1" min="0" max="100" oninput="saveStamm()"/><span class="unit-badge">%</span></div></div>
         </div>
         <div class="fg">
-          <label>Schwund-Zuschlag (%)</label>
+          <label for="pSchwund">Schwund-Zuschlag (%)</label>
           <div class="kalk-param"><div class="unit-wrap"><input type="number" id="pSchwund" step="0.1" min="0" max="100" oninput="saveStamm()"/><span class="unit-badge">%</span></div></div>
         </div>
         <div class="fg">
-          <label>Ziel-WEQ Warnung (%)</label>
+          <label for="pWeqWarn">Ziel-WEQ Warnung (%)</label>
           <div class="kalk-param"><div class="unit-wrap"><input type="number" id="pWeqWarn" step="1" min="0" max="100" oninput="saveStamm()"/><span class="unit-badge">%</span></div></div>
         </div>
         <div class="fg">
-          <label>Ziel-WEQ Kritisch (%)</label>
+          <label for="pWeqCrit">Ziel-WEQ Kritisch (%)</label>
           <div class="kalk-param"><div class="unit-wrap"><input type="number" id="pWeqCrit" step="1" min="0" max="100" oninput="saveStamm()"/><span class="unit-badge">%</span></div></div>
         </div>
       </div>
@@ -1647,12 +1647,13 @@ function renderCalendar(){
           const dd=getDayData(key);
           const wrap=mk('div','pax-wrap');
           const inp=mk('input');inp.type='number';inp.min='0';inp.placeholder='–';inp.value=dd.pax||'';
+          inp.name='pax_'+key;
           inp.onchange=()=>{getDayData(key).pax=inp.value;persist();};
           const sp=mk('span');sp.textContent='Pax';
           wrap.appendChild(inp);wrap.appendChild(sp);cell.appendChild(wrap);
         } else if(row.id==='note'){
           const dd=getDayData(key);
-          const ta=mk('textarea');ta.placeholder='Notiz …';ta.value=dd.note||'';ta.rows=2;
+          const ta=mk('textarea');ta.placeholder='Notiz …';ta.value=dd.note||'';ta.rows=2;ta.name='note_'+key;
           ta.onchange=()=>{getDayData(key).note=ta.value;persist();};cell.appendChild(ta);
         }
         grid.appendChild(cell);
@@ -3365,28 +3366,28 @@ function renderKalk(id){
     <div class="kalk-section-head"><h3>Kalkulations-Parameter</h3></div>
     <div class="kalk-params">
       <div class="kalk-param">
-        <label>VK Brutto (€)</label>
+        <label for="kalkVkBrutto">VK Brutto (€)</label>
         <div class="unit-wrap">
           <input type="number" step="0.10" min="0" value="${k.vkBrutto}" onchange="kalkSetParam(${id},'vkBrutto',this.value)" class="num-inp"/>
           <span class="unit-badge">€</span>
         </div>
       </div>
       <div class="kalk-param">
-        <label>Geplante Portionen</label>
+        <label for="kalkPortionen">Geplante Portionen</label>
         <div class="unit-wrap">
           <input type="number" step="1" min="1" value="${k.portionen}" onchange="kalkSetParam(${id},'portionen',this.value)" class="num-inp"/>
           <span class="unit-badge">Port.</span>
         </div>
       </div>
       <div class="kalk-param">
-        <label>Schwund-Zuschlag (%)</label>
+        <label for="kalkSchwund">Schwund-Zuschlag (%)</label>
         <div class="unit-wrap">
           <input type="number" step="0.5" min="0" max="100" value="${k.schwund!=null?k.schwund:stamm.schwund}" onchange="kalkSetParam(${id},'schwund',this.value)" class="num-inp"/>
           <span class="unit-badge">%</span>
         </div>
       </div>
       <div class="kalk-param">
-        <label>MwSt. (Stammdaten)</label>
+        <label for="kalkMwst">MwSt. (Stammdaten)</label>
         <div class="unit-wrap">
           <input type="number" value="${stamm.mwst}" disabled style="background:var(--surface2);color:var(--ink3);cursor:not-allowed"/>
           <span class="unit-badge">%</span>
