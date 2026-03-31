@@ -1866,7 +1866,7 @@ function filterRecipes(){
     (!q||r.name.toLowerCase().includes(q)||(r.tags||[]).some(t=>t.toLowerCase().includes(q)))&&
     (!cat||r.category===cat)&&(!season||r.season===season)&&
     (!currentTag||(r.tags||[]).includes(currentTag))
-  );
+  ).sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
   renderRecipeGrid();
 }
 function setTag(el,tag){
