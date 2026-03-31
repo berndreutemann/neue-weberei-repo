@@ -998,7 +998,7 @@
       <div class="eink-week-sel" id="einkWeekSel"></div>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn-s" onclick="einkResetChecked()">↺ Abhaken zurücksetzen</button>
-        <button class="btn-s p" onclick="window.print()">🖨 Drucken</button>
+        <button class="btn-s p" onclick="printEinkaufsliste()">🖨 Drucken</button>
       </div>
     </div>
     <div id="einkSumBar" class="eink-sum-bar" style="display:none"></div>
@@ -5121,6 +5121,110 @@ ${c.vkBrutto>0?`
     iframe.contentWindow.print();
     iframe.contentWindow.onafterprint=()=>{pw.style.display='none';pw.innerHTML='';};
     setTimeout(()=>{if(pw.style.display!=='none'){pw.style.display='none';pw.innerHTML='';}},8000);
+  };
+}
+
+/* ═══════════════════════════════════════════════════════
+   PRINT EINKAUFSLISTE — A4
+═══════════════════════════════════════════════════════ */
+function printEinkaufsliste(){
+  const items=buildShoppingList();
+  if(!items.length){showToast('Keine Artikel zum Drucken.');return;}
+  const now=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // Group by Lieferant (same logic as renderEinkaufsliste)
+  const byLief=new Map();
+  items.forEach(item=>{
+    const raw=item.article?.lieferant||'';
+    const lief=raw?normLieferant(raw):'Sonstiges / Manuell';
+    if(!byLief.has(lief))byLief.set(lief,[]);
+    byLief.get(lief).push(item);
+  });
+  const sortedLiefs=[...byLief.keys()].sort((a,b)=>{
+    if(a==='Sonstiges / Manuell')return 1;
+    if(b==='Sonstiges / Manuell')return -1;
+    return a.toLowerCase().localeCompare(b.toLowerCase(),'de');
+  });
+
+  const weeksLabel=[...einkSelWeeks].map(w=>{
+    const d=new Date(w);
+    return `KW ${getWeekNr(d)} (${d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})})`;
+  }).join(', ');
+
+  let tableRows='';
+  sortedLiefs.forEach(lief=>{
+    const grp=byLief.get(lief);
+    tableRows+=`<tr class="lief-head"><td colspan="5">${escHtml(lief)} <span style="font-weight:400;font-size:10px;opacity:.6">(${grp.length} Artikel)</span></td></tr>`;
+    grp.forEach(item=>{
+      const artNr=item.article?.artNr?`<div style="font-size:9px;color:#888">${escHtml(item.article.artNr)}</div>`:'';
+      let vpeInfo='', kostenInfo='';
+      if(item.article?.vpe&&item.article?.preis){
+        const kalkVpe=item.kalkEntry?.vpeGroesse;
+        const artVpeInRezUnit=kalkVpe>0?kalkVpe:convertVpeToRecipeUnit(item.article.vpe||1,item.article.einheit,item.unit);
+        const vpeNeeded=artVpeInRezUnit>0?Math.ceil(item.totalAmount/artVpeInRezUnit):1;
+        const kosten=vpeNeeded*item.article.preis;
+        vpeInfo=`${vpeNeeded} × ${item.article.vpe} ${item.article.einheit}`;
+        kostenInfo=kosten.toFixed(2)+' €';
+      }
+      tableRows+=`<tr>
+        <td>${artNr}<strong>${escHtml(item.name)}</strong></td>
+        <td class="r">${fmtMenge(item.totalAmount,item.unit)}</td>
+        <td>${vpeInfo}</td>
+        <td class="r">${kostenInfo}</td>
+        <td style="font-size:9px;color:#666">${item.rezepte.map(r=>escHtml(r)).join(', ')}</td>
+      </tr>`;
+    });
+  });
+
+  const html=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"/>
+<style>
+  @page{size:A4 portrait;margin:12mm 14mm}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color:#1a1714}
+  .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1a1714;padding-bottom:8px;margin-bottom:10px}
+  .hdr-title{font-size:16px;font-weight:600;font-family:Georgia,serif}
+  .hdr-sub{font-size:9px;color:#666;margin-top:2px}
+  .hdr-logo{text-align:right;font-size:8px;color:#888;line-height:1.5}
+  .hdr-logo strong{display:block;font-size:11px;color:#1a1714;font-family:Georgia,serif}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1a1714;color:#f4f1eb;padding:4px 7px;font-size:7.5px;text-transform:uppercase;letter-spacing:.07em;text-align:left;font-weight:600}
+  th.r{text-align:right}
+  td{padding:3.5px 7px;border-bottom:1px solid #ede9e1;vertical-align:top}
+  td.r{text-align:right;font-family:monospace}
+  tr.lief-head td{background:#ede9e1;font-weight:700;font-size:10px;padding:5px 7px;border-top:2px solid #ccc}
+  .foot{border-top:1px solid #ddd;padding-top:6px;margin-top:10px;display:flex;justify-content:space-between;font-size:8px;color:#888}
+</style></head><body>
+<div class="hdr">
+  <div><div class="hdr-title">🛒 Einkaufsliste</div><div class="hdr-sub">${weeksLabel}</div></div>
+  <div class="hdr-logo"><strong>Neue Weberei</strong>Küche · Management<br>${now}</div>
+</div>
+<table>
+  <thead><tr>
+    <th>Artikel</th><th class="r">Menge</th><th>VPE Bestellung</th><th class="r">Kosten ca.</th><th>Aus Rezept</th>
+  </tr></thead>
+  <tbody>${tableRows}</tbody>
+</table>
+<div class="foot">
+  <span>Neue Weberei · Küche Management</span>
+  <span>${items.length} Positionen · ${sortedLiefs.length} Lieferanten</span>
+  <span>Erstellt: ${now}</span>
+</div>
+</body></html>`;
+
+  let pw=document.getElementById('printWindow');
+  if(!pw){pw=document.createElement('div');pw.id='printWindow';document.body.appendChild(pw);}
+  pw.style.cssText='display:block;position:fixed;inset:0;z-index:99999;background:#fff';
+  const iframe=document.createElement('iframe');
+  iframe.style.cssText='width:100%;height:100%;border:none';
+  pw.innerHTML='';pw.appendChild(iframe);
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+  iframe.onload=()=>{
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    iframe.contentWindow.onafterprint=()=>{pw.style.display='none';pw.innerHTML='';};
+    setTimeout(()=>{if(pw.style.display!=='none'){pw.style.display='none';pw.innerHTML='';}},5000);
   };
 }
 
