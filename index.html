@@ -1028,6 +1028,7 @@
         <button class="btn-s" onclick="openMlModal()">+ Artikel</button>
         <button class="btn-s" onclick="downloadMlTemplate()" title="CSV-Vorlage herunterladen">⬇ CSV-Vorlage</button>
         <button class="btn-s p" style="background:#e63000;border-color:#e63000" onclick="document.getElementById('mlPdfInput').click()" title="METRO PDF-Bestellliste importieren">📄 METRO PDF-Import</button>
+        <button class="btn-s" onclick="recoverArticlesFromKalk()" title="Fehlende Artikel aus Kalkulationsdaten wiederherstellen">🔧 Recovery</button>
         <input type="file" id="mlPdfInput" accept=".pdf" style="display:none" onchange="importMetroPdf(event)"/>
         <button class="btn-s p" onclick="document.getElementById('mlImportInput').click()">⬆ CSV Import</button>
         <input type="file" id="mlImportInput" accept=".csv,.txt" style="display:none" onchange="importMlCsv(event)"/>
@@ -1282,8 +1283,7 @@ async function loadRecipes(){
 async function loadMutterliste(){
   const {data,error}=await _sb.from('articles').select('*').order('lieferant');
   if(error){console.error('Artikel laden:', error);return;}
-  mutterliste=(data||[]).map(a=>({...a.data, id:a.id, _dbId:a.id}));
-  mutterliste=mutterliste.map(a=>({...a,id:Math.round(a.id),lieferant:normLieferant(a.lieferant||a.data?.lieferant||'')}));
+  mutterliste=(data||[]).map(a=>{const d={...a.data,id:Math.round(a.id),_dbId:a.id};d.lieferant=normLieferant(d.lieferant||'');return d;});
 }
 
 async function loadCats(){
@@ -1326,7 +1326,8 @@ async function deleteRecipeFromDb(dbId){
 
 async function saveArticleToDb(articleData, dbId){
   if(dbId){
-    await _sb.from('articles').update({data:articleData,name:articleData.name,lieferant:articleData.lieferant||'',updated_at:'now()'}).eq('id',dbId);
+    const {error:ue}=await _sb.from('articles').update({data:articleData,name:articleData.name,lieferant:articleData.lieferant||'',updated_at:'now()'}).eq('id',dbId);
+    if(ue) console.error('Artikel-Update Fehler:',ue);
     return dbId;
   } else {
     const {data,error}=await _sb.from('articles').insert({data:articleData,name:articleData.name,lieferant:articleData.lieferant||''}).select().single();
@@ -3098,8 +3099,10 @@ function getKalk(id){
       rezeptPortionen: r?.portions||1, // Basisportion des Rezepts — Divisor für Portionsnormierung
       schwund: stamm.schwund,
       zutaten: (r?.ingredients||[]).map(i=>{
-        // Prüfen ob Zutat ein anderes Rezept referenziert
+        // Prüfen ob Zutat ein anderes Rezept referenziert (nur wenn kein Artikel gefunden)
         const refId=i.recipeRef||(()=>{
+          const art=resolveArticleForIngr(i);
+          if(art) return null; // Artikel hat Vorrang
           const sr=recipes.find(sr=>sr.id!==id&&sr.name.trim().toLowerCase()===i.name.trim().toLowerCase());
           return sr?sr.id:null;
         })();
@@ -3125,10 +3128,10 @@ function getKalk(id){
   // 1. Für jede Kalk-Zutat: Artikel-Verknüpfung + Menge aus Rezept aktualisieren
   k.zutaten.forEach(z=>{
     const recipeIngr=recipeIngrs.find(i=>i.name&&z.name&&i.name.trim().toLowerCase()===z.name.trim().toLowerCase());
-    // Auto-detect recipeRef: Zutat-Name entspricht einem anderen Rezept
-    if(!z.recipeRef){
+    // Auto-detect recipeRef: nur wenn KEIN Artikel verknüpft und Name = anderes Rezept
+    if(!z.recipeRef&&!z.mlId){
       const sr=recipes.find(sr=>sr.id!==id&&sr.name.trim().toLowerCase()===(z.name||'').trim().toLowerCase());
-      if(sr){z.recipeRef=sr.id;z.mlId=null;z.vpePreis=0;z.vpeGroesse=0;changed=true;}
+      if(sr){z.recipeRef=sr.id;z.vpePreis=0;z.vpeGroesse=0;changed=true;}
     }
     if(z.recipeRef) return; // Rezept-Referenz: keine Artikel-Sync nötig
     const art=recipeIngr?resolveArticleForIngr(recipeIngr):mlByName(z.name);
@@ -3638,7 +3641,6 @@ async function quickSaveMl(){
   }
   const lief=(document.getElementById('qLief')?.value||'').trim();
   const data={
-    id: Date.now()+Math.floor(Math.random()*997),
     lieferant: normLieferant(lief),
     artNr:  (document.getElementById('qNr')?.value||'').trim(),
     name,
@@ -3650,8 +3652,15 @@ async function quickSaveMl(){
   };
   showLoader(true);
   const newId = await saveArticleToDb(data, null);
-  if(newId){ data.id=Math.round(newId); data._dbId=newId; mutterliste.unshift(data); }
-  showLoader(false);
+  if(newId){
+    data.id=Math.round(newId); data._dbId=newId;
+    mutterliste.unshift(data);
+    showLoader(false);
+  } else {
+    showLoader(false);
+    showToast('⚠ Artikel konnte nicht in Supabase gespeichert werden',4000);
+    return;
+  }
 
   // Keep lieferant for next row, clear rest
   const keepLief=document.getElementById('qLief')?.value||'';
@@ -4273,6 +4282,174 @@ async function executePdfImport(includeUpdates){
   showToast(`✓ METRO Import: ${added} neue Artikel · ${updated} Preise aktualisiert`, 4000);
 }
 
+
+/* ═══════════════════════════════════════════════════════
+   ARTIKELSTAMM RECOVERY — aus Kalkulationsdaten wiederherstellen
+═══════════════════════════════════════════════════════ */
+async function recoverArticlesFromKalk(){
+  // Sammle alle Zutaten aus allen Kalkulationen die:
+  // - einen Preis haben (vpePreis > 0)
+  // - NICHT schon im Artikelstamm vorhanden sind (kein passender Artikel)
+  const candidates = new Map(); // key=name_lower → best entry
+
+  Object.values(_kalkCache).forEach(k=>{
+    (k?.zutaten||[]).forEach(z=>{
+      if(!z.name||z.recipeRef) return;
+      if(!z.vpePreis||z.vpePreis<=0) return;
+      const key = z.name.trim().toLowerCase();
+      // Bereits im Artikelstamm vorhanden?
+      const exists = mutterliste.find(a=>a.name&&a.name.trim().toLowerCase()===key);
+      if(exists) return;
+      // Noch nicht in candidates oder dieser hat mehr Daten
+      if(!candidates.has(key)||(!candidates.get(key).einheit&&z.einheit)){
+        candidates.set(key,{
+          name: z.name.trim(),
+          preis: z.vpePreis,
+          vpe: z.vpeGroesse||1,
+          einheit: z.einheit||'g',
+          lieferant: z.lieferant||'',
+          artNr: z.artNr||'',
+        });
+      }
+    });
+  });
+
+  if(candidates.size===0){
+    showToast('✓ Keine fehlenden Artikel gefunden – Artikelstamm ist vollständig.');
+    return;
+  }
+
+  // Show recovery modal
+  const list=[...candidates.values()];
+  let html=`<div style="font-family:'DM Sans',sans-serif;max-height:60vh;overflow-y:auto">
+    <p style="font-size:.84rem;color:var(--ink2);margin-bottom:14px">
+      Es wurden <strong>${list.length} Artikel</strong> in den Kalkulationsdaten gefunden, 
+      die nicht im Artikelstamm vorhanden sind. Diese können wiederhergestellt werden.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr style="background:var(--ink);color:#f4f1eb">
+        <th style="padding:6px 8px;text-align:left"><input type="checkbox" id="recCbAll" onchange="document.querySelectorAll('.rec-cb').forEach(c=>c.checked=this.checked)" checked/></th>
+        <th style="padding:6px 8px;text-align:left">Artikelname</th>
+        <th style="padding:6px 8px;text-align:right">Preis €</th>
+        <th style="padding:6px 8px;text-align:right">VPE</th>
+        <th style="padding:6px 8px">Einheit</th>
+        <th style="padding:6px 8px">Lieferant</th>
+      </tr></thead>
+      <tbody>${list.map((a,i)=>`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px"><input type="checkbox" class="rec-cb" data-idx="${i}" checked/></td>
+        <td style="padding:5px 8px;font-weight:500">${escHtml(a.name)}</td>
+        <td style="padding:5px 8px;text-align:right">${a.preis.toFixed(2)}</td>
+        <td style="padding:5px 8px;text-align:right">${a.vpe}</td>
+        <td style="padding:5px 8px">${escHtml(a.einheit)}</td>
+        <td style="padding:5px 8px;color:var(--ink3)">${escHtml(a.lieferant||'–')}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+
+  // Show in a simple confirm-like overlay
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:#fff;border-radius:8px;max-width:700px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.25)">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:1.1rem">🔧 Artikelstamm Recovery</h3>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--ink3)">✕</button>
+    </div>
+    <div style="padding:20px;overflow-y:auto;flex:1">${html}</div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn-s" onclick="this.closest('[style*=fixed]').remove()">Abbrechen</button>
+      <button class="btn-s p" onclick="executeRecovery(${JSON.stringify(list).replace(/"/g,'&quot;')},this)">✓ Ausgewählte Artikel wiederherstellen</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov._list=list;
+}
+
+async function executeRecovery(list, btn){
+  const ov=btn.closest('[style*=fixed]');
+  const checked=[...ov.querySelectorAll('.rec-cb:checked')].map(c=>parseInt(c.dataset.idx));
+  if(!checked.length){showToast('Keine Artikel ausgewählt');return;}
+  showLoader(true);
+  let count=0;
+  for(const idx of checked){
+    const a=list[idx];
+    const artData={lieferant:normLieferant(a.lieferant||''),artNr:a.artNr||'',name:a.name,preis:a.preis,vpe:a.vpe,einheit:a.einheit,alt:'',active:true};
+    const newId=await saveArticleToDb(artData,null);
+    if(newId){artData.id=Math.round(newId);artData._dbId=newId;mutterliste.push(artData);count++;}
+  }
+  showLoader(false);
+  ov.remove();
+  renderMutterliste();
+  showToast(`✓ ${count} Artikel wiederhergestellt`,4000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ARTIKELSTAMM RECOVERY — aus Kalkulationsdaten
+═══════════════════════════════════════════════════════ */
+async function recoverArticlesFromKalk(){
+  const candidates=new Map();
+  Object.values(_kalkCache).forEach(k=>{
+    (k?.zutaten||[]).forEach(z=>{
+      if(!z.name||z.recipeRef||!z.vpePreis||z.vpePreis<=0) return;
+      const key=z.name.trim().toLowerCase();
+      const exists=mutterliste.find(a=>a.name&&a.name.trim().toLowerCase()===key);
+      if(exists) return;
+      if(!candidates.has(key)||(!candidates.get(key).einheit&&z.einheit)){
+        candidates.set(key,{name:z.name.trim(),preis:z.vpePreis,vpe:z.vpeGroesse||1,einheit:z.einheit||'g',lieferant:z.lieferant||'',artNr:z.artNr||''});
+      }
+    });
+  });
+  if(candidates.size===0){showToast('✓ Keine fehlenden Artikel gefunden – Artikelstamm ist vollständig.');return;}
+  const list=[...candidates.values()];
+  const rows=list.map((a,i)=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:5px 8px"><input type="checkbox" class="rec-cb" data-idx="${i}" checked/></td>
+    <td style="padding:5px 8px;font-weight:500">${escHtml(a.name)}</td>
+    <td style="padding:5px 8px;text-align:right;font-family:monospace">${a.preis.toFixed(2)}</td>
+    <td style="padding:5px 8px;text-align:right">${a.vpe}</td>
+    <td style="padding:5px 8px">${escHtml(a.einheit)}</td>
+    <td style="padding:5px 8px;color:var(--ink3)">${escHtml(a.lieferant||'–')}</td>
+  </tr>`).join('');
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML=`<div style="background:#fff;border-radius:8px;max-width:720px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.25)">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:1.1rem">🔧 Artikelstamm Recovery</h3>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--ink3)">✕</button>
+    </div>
+    <div style="padding:16px 20px;overflow-y:auto;flex:1">
+      <p style="font-size:.84rem;color:var(--ink2);margin-bottom:14px"><strong>${list.length} Artikel</strong> wurden in Kalkulationsdaten gefunden aber fehlen im Artikelstamm.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+        <thead><tr style="background:var(--ink);color:#f4f1eb">
+          <th style="padding:6px 8px"><input type="checkbox" id="recCbAll" onchange="this.closest('table').querySelectorAll('.rec-cb').forEach(c=>c.checked=this.checked)" checked/></th>
+          <th style="padding:6px 8px;text-align:left">Artikelname</th>
+          <th style="padding:6px 8px;text-align:right">Preis €</th>
+          <th style="padding:6px 8px;text-align:right">VPE</th>
+          <th style="padding:6px 8px;text-align:left">Einheit</th>
+          <th style="padding:6px 8px;text-align:left">Lieferant</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn-s" onclick="this.closest('div[style*=fixed]').remove()">Abbrechen</button>
+      <button class="btn-s p" id="recExecBtn">✓ Ausgewählte wiederherstellen</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov._list=list;
+  ov.querySelector('#recExecBtn').onclick=async function(){
+    const checked=[...ov.querySelectorAll('.rec-cb:checked')].map(c=>parseInt(c.dataset.idx));
+    if(!checked.length){showToast('Keine Artikel ausgewählt');return;}
+    showLoader(true);let count=0;
+    for(const idx of checked){
+      const a=ov._list[idx];
+      const artData={lieferant:normLieferant(a.lieferant||''),artNr:a.artNr||'',name:a.name,preis:a.preis,vpe:a.vpe,einheit:a.einheit,alt:'',active:true};
+      const newId=await saveArticleToDb(artData,null);
+      if(newId){artData.id=Math.round(newId);artData._dbId=newId;mutterliste.push(artData);count++;}
+    }
+    showLoader(false);ov.remove();renderMutterliste();
+    showToast(`✓ ${count} Artikel wiederhergestellt`,4000);
+  };
+}
 
 /* ═══════════════════════════════════════════════════════
    DATEN EXPORT / IMPORT (alle lokalen Daten)
