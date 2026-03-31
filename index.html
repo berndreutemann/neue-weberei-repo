@@ -8,7 +8,10 @@
   <!-- version: 202603101421 -->
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="theme-color" content="#1c1c1a"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽</text></svg>"/>
   <title>Neue Weberei · Küche</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -3434,8 +3437,8 @@ function renderKalk(id){
           </td>
           ${z.recipeRef
             ?`<td colspan="2" style="padding:4px 8px;font-size:.75rem;color:#3d4f8a;background:#eef0f8;text-align:center">Preis aus Kalkulation</td>`
-            :`<td><input type="number" step="0.01" min="0" class="num-inp" value="${z.vpePreis||''}" placeholder="0.00" onchange="kalkZutatSet(${id},${i},'vpePreis',this.value)" style="${vpeStyle}"/></td>
-          <td><input type="number" step="1" min="0" class="num-inp" value="${z.vpeGroesse||''}" placeholder="1000" onchange="kalkZutatSet(${id},${i},'vpeGroesse',this.value)" style="${vpeStyle}"/></td>`}
+            :`<td><input type="number" step="0.01" min="0" class="num-inp" name="vpePreis_${i}" value="${z.vpePreis||''}" placeholder="0.00" onchange="kalkZutatSet(${id},${i},'vpePreis',this.value)" style="${vpeStyle}"/></td>
+          <td><input type="number" step="1" min="0" class="num-inp" name="vpeGroesse_${i}" value="${z.vpeGroesse||''}" placeholder="1000" onchange="kalkZutatSet(${id},${i},'vpeGroesse',this.value)" style="${vpeStyle}"/></td>`}
           <td class="ki-calc num">${z.klEinheit?z.klEinheit.toFixed(5):'-'}</td>
           <td class="ki-calc num">${fmt(z.rezeptKosten)}</td>
         </tr>`;
@@ -3840,20 +3843,20 @@ function renderMutterliste(){
             data-mlid="${Math.round(a.id)}" onchange="mlToggleSelect(this.dataset.mlid,this.checked)"/></td>
           <td><input class="ml-ie" value="${escAttr(a.lieferant||'')}" list="qLiefList"
             onchange="mlInlineSet(${a.id},'lieferant',this.value)"/></td>
-          <td><input class="ml-ie ml-artnr" value="${escAttr(a.artNr||'')}"
+          <td><input class="ml-ie ml-artnr" name="artNr_${a.id}" value="${escAttr(a.artNr||'')}"
             onchange="mlInlineSet(${a.id},'artNr',this.value)"/></td>
-          <td><input class="ml-ie" value="${escAttr(a.name)}" style="font-weight:500"
+          <td><input class="ml-ie" name="name_${a.id}" value="${escAttr(a.name)}" style="font-weight:500"
             onchange="mlInlineSet(${a.id},'name',this.value)"/></td>
-          <td class="r"><input class="ml-ie ml-ie-num" type="number" step="0.01" min="0"
+          <td class="r"><input class="ml-ie ml-ie-num" type="number" step="0.01" min="0" name="preis_${a.id}"
             value="${a.preis!=null?a.preis:''}" placeholder="–"
             onchange="mlInlineSet(${a.id},'preis',this.value)"/></td>
-          <td class="r"><input class="ml-ie ml-ie-num" type="number" step="0.01" min="0"
+          <td class="r"><input class="ml-ie ml-ie-num" type="number" step="0.01" min="0" name="vpe_${a.id}"
             value="${a.vpe!=null?a.vpe:''}" placeholder="–"
             onchange="mlInlineSet(${a.id},'vpe',this.value)"/></td>
-          <td><select class="ml-ie-sel" onchange="mlInlineSet(${a.id},'einheit',this.value)">
+          <td><select class="ml-ie-sel" name="einheit_${a.id}" onchange="mlInlineSet(${a.id},'einheit',this.value)">
             ${['g','kg','ml','l','Stk.','Bund','Karton','Pack','Schale'].map(u=>`<option${u===(a.einheit||'')?'  selected':''}>${u}</option>`).join('')}
           </select></td>
-          <td><input class="ml-ie" value="${escAttr(a.alt||'')}" placeholder="–"
+          <td><input class="ml-ie" name="alt_${a.id}" value="${escAttr(a.alt||'')}" placeholder="–"
             onchange="mlInlineSet(${a.id},'alt',this.value)"/></td>
           <td>
             <label class="ml-toggle" title="${a.active===false?'Inaktiv – klicken zum Aktivieren':'Aktiv – klicken zum Deaktivieren'}">
